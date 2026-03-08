@@ -1,6 +1,5 @@
-import { Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp } from 'lucide-react'
-
 export type AppStatus = 'live' | 'coming-soon'
+export type AppAudience = 'internal' | 'sales_rep' | 'client' | 'all'
 
 export interface App {
   slug: string
@@ -10,26 +9,41 @@ export interface App {
   icon: string
   color: string
   status: AppStatus
+  audience: AppAudience  // who can see this app
 }
+
+export const CLIENTS = [
+  'Budgetdog',
+  'BD Tax',
+  'Goshen',
+  'Intro.com',
+  'Full Time Purpose',
+  'Simple Programmer',
+  'Woobie',
+  'Munera Capital',
+  'Morrow Marriage',
+]
 
 export const APPS: App[] = [
   {
     slug: 'candidate-app',
-    name: 'Candidate Dashboard',
+    name: 'Hiring Dashboard',
     description: 'Review and manage sales rep applicants',
-    url: 'https://candidates.systemizedsales.com',
+    url: 'https://hiring.systemizedsales.com',
     icon: 'Users',
     color: 'blue',
     status: 'live',
+    audience: 'internal',
   },
   {
     slug: 'qc-dashboard',
     name: 'GHL QC Dashboard',
-    description: 'Review and score sales call quality',
-    url: '#',
+    description: 'Rep performance, SOP compliance, and pipeline hygiene across all clients',
+    url: '/qc-dashboard',
     icon: 'ClipboardCheck',
     color: 'green',
-    status: 'coming-soon',
+    status: 'live',
+    audience: 'internal',
   },
   {
     slug: 'rep-onboarding',
@@ -39,6 +53,7 @@ export const APPS: App[] = [
     icon: 'UserPlus',
     color: 'purple',
     status: 'coming-soon',
+    audience: 'all',
   },
   {
     slug: 'playbook',
@@ -48,6 +63,17 @@ export const APPS: App[] = [
     icon: 'BookOpen',
     color: 'orange',
     status: 'coming-soon',
+    audience: 'all',
+  },
+  {
+    slug: 'client-command-center',
+    name: 'Client Command Center',
+    description: 'Your sales team metrics, pipeline, and performance at a glance',
+    url: '/[client]/command-center',
+    icon: 'BarChart2',
+    color: 'blue',
+    status: 'live',
+    audience: 'client',
   },
   {
     slug: 'revphlo',
@@ -57,5 +83,6 @@ export const APPS: App[] = [
     icon: 'TrendingUp',
     color: 'yellow',
     status: 'live',
+    audience: 'internal',
   },
 ]

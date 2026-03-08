@@ -1,10 +1,10 @@
 "use client";
 
 import { APPS, type App } from "@/lib/apps";
-import { Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, Lock, ExternalLink } from "lucide-react";
+import { Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2, Lock, ExternalLink } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{size?: number; color?: string}>> = {
-  Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp,
+  Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2,
 };
 
 const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; btn: string }> = {
@@ -19,16 +19,24 @@ interface Props {
   apps: App[];
   permittedSlugs: string[];
   isAdmin: boolean;
+  userRole: string;
+  userClient: string | null;
 }
 
-export default function AppGrid({ apps, permittedSlugs, isAdmin }: Props) {
+export default function AppGrid({ apps, permittedSlugs, isAdmin, userRole, userClient }: Props) {
+  // Filter apps by role
+  const visibleApps = userRole === 'sales_rep'
+    ? apps.filter(a => a.audience === 'all' || a.audience === 'sales_rep')
+    : userRole === 'client'
+    ? apps.filter(a => a.audience === 'all' || a.audience === 'client')
+    : apps; // admin/manager see everything
   return (
     <div style={{
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
       gap: "20px",
     }}>
-      {apps.map((app) => {
+      {visibleApps.map((app) => {
         const hasAccess = isAdmin || permittedSlugs.includes(app.slug);
         const isLive = app.status === "live";
         const colors = COLOR_MAP[app.color] ?? COLOR_MAP.blue;

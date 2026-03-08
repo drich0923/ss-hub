@@ -15,17 +15,22 @@ export default async function AdminPage() {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
   // Fetch all users + all permissions via service key
-  const [usersRes, permsRes] = await Promise.all([
+  const [usersRes, permsRes, clientsRes] = await Promise.all([
     fetch(`${SUPABASE_URL}/rest/v1/manager_profiles?select=*&order=created_at.desc`, {
       headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` },
     }),
     fetch(`${SUPABASE_URL}/rest/v1/user_permissions?select=*`, {
       headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` },
     }),
+    fetch(`${SUPABASE_URL}/rest/v1/clients?select=*&order=name.asc`, {
+      headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` },
+      cache: "no-store",
+    }),
   ])
 
   const users = await usersRes.json()
   const permissions = await permsRes.json()
+  const clients = await clientsRes.json()
 
-  return <AdminPanel users={users} permissions={permissions} apps={APPS} currentUserId={user.id} />
+  return <AdminPanel users={users} permissions={permissions} apps={APPS} clients={clients} currentUserId={user.id} />
 }

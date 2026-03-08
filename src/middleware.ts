@@ -8,19 +8,14 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookieOptions: {
-        domain: '.systemizedsales.com',
-        path: '/',
-        sameSite: 'lax',
-        secure: true,
-      },
       cookies: {
         getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options))
+            supabaseResponse.cookies.set(name, value, { ...options, domain: '.systemizedsales.com', path: '/', sameSite: 'lax', secure: true })
+          )
         },
       },
     }
@@ -29,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  if (!user && pathname !== '/login') {
+  if (!user && pathname !== '/login' && !pathname.startsWith('/auth/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     if (pathname !== '/') url.searchParams.set('redirect', pathname)

@@ -11,7 +11,7 @@ export default async function HomePage() {
   // Get user profile + permissions
   const { data: profile } = await supabase
     .from("manager_profiles")
-    .select("role, email")
+    .select("role, email, client")
     .eq("user_id", user.id)
     .single();
 
@@ -61,18 +61,24 @@ export default async function HomePage() {
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             {isAdmin && (
               <a href="/admin" style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
                 color: "#8ceb4c",
                 fontSize: "12px",
                 textDecoration: "none",
                 fontWeight: 600,
                 letterSpacing: "0.5px",
+                background: "rgba(140,235,76,0.08)",
+                border: "1px solid rgba(140,235,76,0.2)",
+                borderRadius: "6px",
+                padding: "6px 12px",
               }}>
-                Admin
+                ⚙ Settings
               </a>
             )}
             <span style={{ color: "#666", fontSize: "13px" }}>{profile?.email ?? user.email}</span>
-            <form action="/api/auth/signout" method="POST">
-              <button type="submit" style={{
+<a href="/api/auth/signout" style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.1)",
                 borderRadius: "6px",
@@ -80,10 +86,10 @@ export default async function HomePage() {
                 fontSize: "12px",
                 padding: "6px 12px",
                 cursor: "pointer",
+                textDecoration: "none",
               }}>
                 Sign out
-              </button>
-            </form>
+              </a>
           </div>
         </div>
       </header>
@@ -116,7 +122,7 @@ export default async function HomePage() {
         </div>
 
         {/* App Grid */}
-        <AppGrid apps={APPS} permittedSlugs={permittedSlugs} isAdmin={isAdmin} />
+        <AppGrid apps={APPS} permittedSlugs={permittedSlugs} isAdmin={isAdmin} userRole={profile?.role ?? "manager"} userClient={profile?.client ?? null} />
       </main>
 
       <footer style={{ textAlign: "center", padding: "32px 24px", color: "#333", fontSize: "12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
