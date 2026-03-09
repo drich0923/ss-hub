@@ -91,71 +91,133 @@ function ModalMetric({ label, value, color, sub }: { label: string; value: strin
   )
 }
 
+type QCAppointment = {
+  id: string
+  report_id: string
+  contact_name: string
+  contact_ghl_url: string | null
+  meeting_type: string | null
+  appt_time: string | null
+  call_outcome: string | null
+  pre_call_pass: boolean | null
+  pre_call_msg_count: number | null
+  pre_call_note: string | null
+  post_call_stage_moved: boolean | null
+  post_call_task_assigned: boolean | null
+  post_call_pcn_complete: boolean | null
+  next_task: string | null
+  next_appt_date: string | null
+}
+
+type QCPipelineIssue = {
+  id: string
+  report_id: string
+  issue_type: string
+  contact_name: string
+  contact_ghl_url: string | null
+  pipeline_stage: string | null
+  days_stale: number | null
+  last_activity_date: string | null
+}
+
+const ISSUE_LABELS: Record<string, string> = {
+  overdue_task: "Overdue Tasks",
+  red_zone_missing_task: "Red Zone — Missing Task",
+  open_deals_missing_task: "Open Deals — Missing Task",
+  unassigned_opp: "Unassigned Opportunities",
+}
+
+function CheckIcon({ pass }: { pass: boolean | null }) {
+  return <span style={{ fontSize: "13px", color: pass ? "#8ceb4c" : "#ff5555" }}>{pass ? "✓" : "✗"}</span>
+}
+
 function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: () => void }) {
+  const [detail, setDetail] = useState<{ appointments: QCAppointment[]; pipeline_issues: QCPipelineIssue[] } | null>(null)
+  const [detailLoading, setDetailLoading] = useState(true)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [onClose])
 
+  useEffect(() => {
+    setDetailLoading(true)
+    fetch(`/api/qc-report-detail?report_id=${r.id}`)
+      .then(res => res.json())
+      .then(data => setDetail(data))
+      .catch(() => setDetail({ appointments: [], pipeline_issues: [] }))
+      .finally(() => setDetailLoading(false))
+  }, [r.id])
+
   const sc = scoreColor(r.score_pct)
   const slackUrl = r.slack_ts && r.slack_channel ? slackThreadUrl(r.slack_channel, r.slack_ts) : null
 
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "40px 16px" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "700px", background: "#0d0d14", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", position: "relative" }}>
+  const groupedIssues = useMemo(() => {
+    if (!detail?.pipeline_issues.length) return {}
+    const groups: Record<string, QCPipelineIssue[]> = {}
+    for (const issue of detail.pipeline_issues) {
+      const key = issue.issue_type || "other"
+      if (!groups[key]) groups[key] = []
+      groups[key].push(issue)
+    }
+    return groups
+  }, [detail?.pipeline_issues])
 
-        {/* Close button */}
-        <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#888", fontSize: "16px", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+  const sectionDivider = { borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "24px", marginBottom: "24px" } as const
+  const sectionLabel = { fontSize: "11px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "1px" } as React.CSSProperties
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "40px 16px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "780px", maxHeight: "90vh", overflowY: "auto", background: "#0a0a10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", position: "relative" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap", paddingRight: "80px" }}>
             <div style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}>{r.rep_name}</div>
-            <span style={{ fontSize: "11px", background: "rgba(45,98,255,0.1)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "4px", padding: "3px 10px", color: "#7090ff" }}>{r.client}</span>
+            <span style={{ fontSize: "11px", background: "rgba(140,235,76,0.1)", border: "1px solid rgba(140,235,76,0.2)", borderRadius: "4px", padding: "3px 10px", color: "#8ceb4c" }}>{r.client}</span>
           </div>
           <div style={{ fontSize: "12px", color: "#555", marginBottom: "12px" }}>{r.report_date}</div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div style={{ fontSize: "32px", fontWeight: 800, color: sc }}>{r.score_pct != null ? `${r.score_pct}%` : "—"}</div>
+            <div style={{ fontSize: "36px", fontWeight: 800, color: sc }}>{r.score_pct != null ? `${r.score_pct}%` : "—"}</div>
             {r.rank && <span style={{ fontSize: "12px", fontWeight: 600, color: RANK_COLORS[r.rank] ?? "#555", background: `${RANK_COLORS[r.rank] ?? "#555"}15`, borderRadius: "6px", padding: "4px 10px" }}>{r.rank}</span>}
-            {slackUrl && (
-              <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", fontSize: "12px", color: "#7090ff", background: "rgba(45,98,255,0.08)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "8px", padding: "6px 14px", textDecoration: "none", fontWeight: 500 }}>View Full Report in Slack →</a>
-            )}
           </div>
+          <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>{r.checks_passed ?? 0} / {r.checks_total ?? 0} checks passed</div>
         </div>
 
-        {/* Section 1: Score Breakdown */}
-        <div style={{ marginBottom: "24px" }}>
-          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Score Breakdown</div>
-          <div style={{ marginBottom: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span style={{ fontSize: "12px", color: "#888" }}>{r.checks_passed ?? 0} / {r.checks_total ?? 0} checks passed</span>
-              <span style={{ fontSize: "12px", color: sc }}>{r.score_pct ?? 0}%</span>
-            </div>
-            <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
-              <div style={{ width: `${r.score_pct ?? 0}%`, height: "100%", background: sc, borderRadius: "4px", transition: "width 0.3s" }} />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-            <div style={{ background: "rgba(140,235,76,0.06)", border: "1px solid rgba(140,235,76,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.pre_call_pct) }}>{r.pre_call_pct != null ? `${r.pre_call_pct}%` : "—"}</div>
-              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>PRE-CALL</div>
-            </div>
-            <div style={{ background: "rgba(45,98,255,0.06)", border: "1px solid rgba(45,98,255,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.during_call_pct) }}>{r.during_call_pct != null ? `${r.during_call_pct}%` : "—"}</div>
-              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>DURING CALL</div>
-            </div>
-            <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.post_call_pct) }}>{r.post_call_pct != null ? `${r.post_call_pct}%` : "—"}</div>
-              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>POST-CALL</div>
-            </div>
-          </div>
+        {/* Top-right buttons */}
+        <div style={{ position: "absolute", top: "16px", right: "16px", display: "flex", gap: "8px" }}>
+          {slackUrl && (
+            <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "#7090ff", background: "rgba(45,98,255,0.08)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "8px", padding: "6px 14px", textDecoration: "none", fontWeight: 500 }}>View in Slack</a>
+          )}
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#888", fontSize: "16px", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
 
-        {/* Section 2: Appointments */}
-        <div style={{ marginBottom: "24px" }}>
-          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Appointments</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "10px" }}>
+        {/* Score Breakdown */}
+        {(r.pre_call_pct != null || r.during_call_pct != null || r.post_call_pct != null) && (
+          <div style={sectionDivider}>
+            <div style={sectionLabel}>Score Breakdown</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+              <div style={{ background: "rgba(140,235,76,0.06)", border: "1px solid rgba(140,235,76,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.pre_call_pct) }}>{r.pre_call_pct != null ? `${r.pre_call_pct}%` : "—"}</div>
+                <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>PRE-CALL</div>
+              </div>
+              <div style={{ background: "rgba(45,98,255,0.06)", border: "1px solid rgba(45,98,255,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.during_call_pct) }}>{r.during_call_pct != null ? `${r.during_call_pct}%` : "—"}</div>
+                <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>DURING CALL</div>
+              </div>
+              <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.post_call_pct) }}>{r.post_call_pct != null ? `${r.post_call_pct}%` : "—"}</div>
+                <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>POST-CALL</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Appointments Summary */}
+        <div style={sectionDivider}>
+          <div style={sectionLabel}>Appointments Summary</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "8px", marginBottom: "10px" }}>
             <ModalMetric label="Total" value={r.appts_total.toString()} />
             <ModalMetric label="Shows" value={r.appts_shows.toString()} color="#8ceb4c" />
             <ModalMetric label="No-Shows" value={r.appts_no_shows.toString()} color={r.appts_no_shows > 0 ? "#ff5555" : "#8ceb4c"} />
@@ -165,38 +227,28 @@ function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: 
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             <ModalMetric label="Show Rate" value={`${r.show_rate ?? 0}%`} color={(r.show_rate ?? 0) >= 70 ? "#8ceb4c" : "#f59e0b"} />
-            <ModalMetric label="No-Show Rate" value={`${r.no_show_rate ?? 0}%`} color={(r.no_show_rate ?? 0) > 20 ? "#ff5555" : "#8ceb4c"} />
             <ModalMetric label="Close Rate" value={`${r.close_rate ?? 0}%`} color={(r.close_rate ?? 0) >= 20 ? "#8ceb4c" : "#f59e0b"} />
+            <ModalMetric label="No-Show Rate" value={`${r.no_show_rate ?? 0}%`} color={(r.no_show_rate ?? 0) > 20 ? "#ff5555" : "#8ceb4c"} />
           </div>
         </div>
 
-        {/* Section 3: Activity */}
+        {/* Activity */}
         {(r.avg_dials != null || r.avg_sms != null || r.avg_emails != null || r.avg_talk_time_min != null || r.productivity_rate != null) && (
-          <div style={{ marginBottom: "24px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Activity</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "8px", marginBottom: r.productivity_rate != null ? "12px" : "0" }}>
-              {r.avg_dials != null && <ModalMetric label="Avg Dials" value={r.avg_dials.toString()} />}
-              {r.avg_sms != null && <ModalMetric label="Avg SMS" value={r.avg_sms.toString()} />}
-              {r.avg_emails != null && <ModalMetric label="Avg Emails" value={r.avg_emails.toString()} />}
-              {r.avg_talk_time_min != null && <ModalMetric label="Avg Talk Time" value={`${r.avg_talk_time_min}m`} />}
+          <div style={sectionDivider}>
+            <div style={sectionLabel}>Activity</div>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {r.avg_dials != null && <ModalMetric label="Dials" value={r.avg_dials.toString()} />}
+              {r.avg_sms != null && <ModalMetric label="SMS" value={r.avg_sms.toString()} />}
+              {r.avg_emails != null && <ModalMetric label="Emails" value={r.avg_emails.toString()} />}
+              {r.avg_talk_time_min != null && <ModalMetric label="Talk Time" value={`${r.avg_talk_time_min}m`} />}
+              {r.productivity_rate != null && <ModalMetric label="Productivity Rate" value={`${r.productivity_rate}%`} color={r.productivity_rate >= 70 ? "#8ceb4c" : "#f59e0b"} />}
             </div>
-            {r.productivity_rate != null && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "12px", color: "#888" }}>Productivity Rate</span>
-                  <span style={{ fontSize: "12px", color: r.productivity_rate >= 70 ? "#8ceb4c" : "#f59e0b" }}>{r.productivity_rate}%</span>
-                </div>
-                <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ width: `${r.productivity_rate}%`, height: "100%", background: r.productivity_rate >= 70 ? "#8ceb4c" : "#f59e0b", borderRadius: "4px" }} />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Section 4: Pipeline Health */}
-        <div style={{ marginBottom: "24px" }}>
-          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pipeline Health</div>
+        {/* Pipeline Health */}
+        <div style={sectionDivider}>
+          <div style={sectionLabel}>Pipeline Health</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
             <ModalMetric label="Overdue Tasks" value={r.overdue_tasks_count.toString()} color={r.overdue_tasks_count > 0 ? "#ff5555" : "#8ceb4c"} />
             <ModalMetric label="Pipeline Issues" value={r.pipeline_hygiene_issues.toString()} color={r.pipeline_hygiene_issues > 0 ? "#ff5555" : "#8ceb4c"} />
@@ -205,18 +257,83 @@ function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: 
           </div>
         </div>
 
-        {/* Section 5: Full Audit */}
-        <div style={{ background: "rgba(45,98,255,0.04)", border: "1px solid rgba(45,98,255,0.12)", borderRadius: "12px", padding: "20px" }}>
-          <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff", marginBottom: "6px" }}>📋 Full Audit Available in Slack</div>
-          <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.6", marginBottom: slackUrl ? "14px" : "0" }}>
-            The full SOP audit — per-appointment pre/during/post call breakdown, overdue task list, and pipeline issue detail — is in the Slack thread.
-          </div>
-          {slackUrl && (
-            <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", fontSize: "13px", fontWeight: 600, color: "#fff", background: "rgba(45,98,255,0.3)", border: "1px solid rgba(45,98,255,0.4)", borderRadius: "8px", padding: "10px 20px", textDecoration: "none" }}>
-              Open Slack Thread →
-            </a>
+        {/* Appointment Audit */}
+        <div style={sectionDivider}>
+          <div style={sectionLabel}>Appointment Audit</div>
+          {detailLoading ? (
+            <div style={{ fontSize: "12px", color: "#555", padding: "16px 0" }}>Loading...</div>
+          ) : !detail?.appointments.length ? (
+            <div style={{ fontSize: "12px", color: "#444", padding: "16px 0" }}>No appointment detail available</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {detail.appointments.map(a => (
+                <div key={a.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "10px", padding: "14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                    {a.contact_ghl_url ? (
+                      <a href={a.contact_ghl_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13px", fontWeight: 600, color: "#7090ff", textDecoration: "none" }}>{a.contact_name}</a>
+                    ) : (
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>{a.contact_name}</span>
+                    )}
+                    {a.meeting_type && <span style={{ fontSize: "10px", background: "rgba(45,98,255,0.1)", border: "1px solid rgba(45,98,255,0.15)", borderRadius: "4px", padding: "2px 6px", color: "#7090ff" }}>{a.meeting_type}</span>}
+                    {a.appt_time && <span style={{ fontSize: "11px", color: "#555", marginLeft: "auto" }}>{a.appt_time}</span>}
+                  </div>
+                  {a.call_outcome && (
+                    <div style={{ fontSize: "12px", color: "#888", marginBottom: "6px" }}>
+                      <span style={{ color: a.call_outcome.toLowerCase().includes("show") && !a.call_outcome.toLowerCase().includes("no") ? "#8ceb4c" : "#ff5555", marginRight: "4px" }}>{a.call_outcome.toLowerCase().includes("show") && !a.call_outcome.toLowerCase().includes("no") ? "✓" : "✗"}</span>
+                      {a.call_outcome}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "12px", marginBottom: a.next_task || a.next_appt_date ? "8px" : "0" }}>
+                    <div style={{ color: "#888" }}>
+                      <span style={{ color: "#555", marginRight: "4px" }}>Pre-Call:</span>
+                      <CheckIcon pass={a.pre_call_pass} />
+                      {a.pre_call_msg_count != null && <span style={{ color: "#555", marginLeft: "6px" }}>{a.pre_call_msg_count} msgs</span>}
+                      {a.pre_call_note && <span style={{ color: "#444", marginLeft: "6px", fontStyle: "italic" }}>{a.pre_call_note}</span>}
+                    </div>
+                    <div style={{ color: "#888" }}>
+                      <span style={{ color: "#555", marginRight: "4px" }}>Post-Call:</span>
+                      <span style={{ marginRight: "6px" }}>Stage <CheckIcon pass={a.post_call_stage_moved} /></span>
+                      <span style={{ marginRight: "6px" }}>Task <CheckIcon pass={a.post_call_task_assigned} /></span>
+                      <span>PCN <CheckIcon pass={a.post_call_pcn_complete} /></span>
+                    </div>
+                  </div>
+                  {(a.next_task || a.next_appt_date) && (
+                    <div style={{ fontSize: "11px", color: "#555", display: "flex", gap: "12px" }}>
+                      {a.next_task && <span>Next: {a.next_task}</span>}
+                      {a.next_appt_date && <span>Next Appt: {a.next_appt_date}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Pipeline Issues Detail */}
+        {!detailLoading && detail?.pipeline_issues && detail.pipeline_issues.length > 0 && (
+          <div style={sectionDivider}>
+            <div style={sectionLabel}>Pipeline Issues</div>
+            {Object.entries(groupedIssues).map(([type, issues]) => (
+              <div key={type} style={{ marginBottom: "14px" }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>{ISSUE_LABELS[type] || type}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {issues.map(issue => (
+                    <div key={issue.id} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "12px", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: "6px" }}>
+                      {issue.contact_ghl_url ? (
+                        <a href={issue.contact_ghl_url} target="_blank" rel="noopener noreferrer" style={{ color: "#7090ff", textDecoration: "none", fontWeight: 500, minWidth: "120px" }}>{issue.contact_name}</a>
+                      ) : (
+                        <span style={{ color: "#fff", fontWeight: 500, minWidth: "120px" }}>{issue.contact_name}</span>
+                      )}
+                      {issue.pipeline_stage && <span style={{ color: "#555" }}>{issue.pipeline_stage}</span>}
+                      {issue.days_stale != null && <span style={{ color: issue.days_stale > 7 ? "#ff5555" : "#f59e0b", marginLeft: "auto", whiteSpace: "nowrap" }}>{issue.days_stale}d stale</span>}
+                      {issue.last_activity_date && <span style={{ color: "#444", whiteSpace: "nowrap" }}>Last: {issue.last_activity_date}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>
