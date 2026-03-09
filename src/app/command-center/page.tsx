@@ -14,6 +14,8 @@ export default async function CommandCenterPage() {
     .single();
 
   const clientName = profile?.client || "Your Team";
+  const role = profile?.role || "client";
+  const isAdmin = role === "admin";
 
-  return <CommandCenterClient clientName={clientName} userEmail={user.email || ""} />;
+  return <CommandCenterClient clientName={clientName} userEmail={user.email || ""} role={role} isAdmin={isAdmin} />;
 }

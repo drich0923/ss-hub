@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Mail, BarChart2, ClipboardList, BookOpen, MessageSquare, TrendingUp, Phone, Calendar, DollarSign } from "lucide-react"
+import { ExternalLink, Mail, BarChart2, ClipboardList, BookOpen, MessageSquare, TrendingUp, Phone, Calendar, DollarSign, Shield } from "lucide-react"
+import { CLIENTS } from "@/lib/apps"
 
 const TEAM = [
   { name: "Dylan Rich", title: "Co-Founder", dept: "Leadership", email: "dylan@systemizedsales.com", initials: "DR", color: "#2d62ff", photo: "/headshots/dylan_rich.jpg", bestFor: "Big picture strategy & partnerships" },
@@ -26,35 +27,47 @@ const DEPT_COLORS: Record<string, string> = {
   "Customer Support": "#f59e0b",
 }
 
-const QUICK_LINKS = [
-  {
-    label: "Sales Tracker",
-    desc: "View pipeline, revenue, and rep performance metrics",
-    icon: BarChart2,
-    color: "#2d62ff",
-    url: "https://docs.google.com/spreadsheets/d/1LwP5gYv93JQPaw65f_kNxjnOF_TyUXB0_AUTQEWkkMk/edit?gid=457479693#gid=457479693",
+// Per-client quick links config
+type QuickLink = {
+  label: string
+  desc: string
+  icon: typeof BarChart2
+  color: string
+  url: string
+}
+
+const DEFAULT_QUICK_LINKS: QuickLink[] = [
+  { label: "Sales Tracker", desc: "View pipeline, revenue, and rep performance metrics", icon: BarChart2, color: "#2d62ff", url: "#" },
+  { label: "Scorecard", desc: "Rep scorecards, KPIs, and performance benchmarks", icon: ClipboardList, color: "#8ceb4c", url: "#" },
+  { label: "Cash Collected", desc: "Track revenue collected across all reps and deals", icon: DollarSign, color: "#a78bfa", url: "#" },
+  { label: "Post Call Notes", desc: "Submit and review PCN entries for every appointment", icon: BookOpen, color: "#f59e0b", url: "#" },
+]
+
+const CLIENT_CONFIGS: Record<string, { quickLinks: QuickLink[] }> = {
+  Budgetdog: {
+    quickLinks: [
+      { label: "Sales Tracker", desc: "View pipeline, revenue, and rep performance metrics", icon: BarChart2, color: "#2d62ff", url: "https://docs.google.com/spreadsheets/d/1LwP5gYv93JQPaw65f_kNxjnOF_TyUXB0_AUTQEWkkMk/edit?gid=457479693#gid=457479693" },
+      { label: "Scorecard", desc: "Rep scorecards, KPIs, and performance benchmarks", icon: ClipboardList, color: "#8ceb4c", url: "https://docs.google.com/spreadsheets/d/1SqW1lshDXpx20Ayxx1TE5TtvQ168JtxRrf_ROjX9EBs/edit?gid=3306932#gid=3306932" },
+      { label: "Cash Collected", desc: "Track revenue collected across all reps and deals", icon: DollarSign, color: "#a78bfa", url: "https://docs.google.com/spreadsheets/d/1XmYFfVRm-uySClXGn6NzN5F5rJBBL-LwzZTkYbTssMk/edit?gid=932012897#gid=932012897" },
+      { label: "Post Call Notes", desc: "Submit and review PCN entries for every appointment", icon: BookOpen, color: "#f59e0b", url: "https://www.notion.so/22c4930ab85f80b68a9ed7af9f3964f4" },
+    ],
   },
-  {
-    label: "Scorecard",
-    desc: "Rep scorecards, KPIs, and performance benchmarks",
-    icon: ClipboardList,
-    color: "#8ceb4c",
-    url: "https://docs.google.com/spreadsheets/d/1SqW1lshDXpx20Ayxx1TE5TtvQ168JtxRrf_ROjX9EBs/edit?gid=3306932#gid=3306932",
-  },
-  {
-    label: "Cash Collected",
-    desc: "Track revenue collected across all reps and deals",
-    icon: DollarSign,
-    color: "#a78bfa",
-    url: "https://docs.google.com/spreadsheets/d/1XmYFfVRm-uySClXGn6NzN5F5rJBBL-LwzZTkYbTssMk/edit?gid=932012897#gid=932012897",
-  },
-  {
-    label: "Post Call Notes",
-    desc: "Submit and review PCN entries for every appointment",
-    icon: BookOpen,
-    color: "#f59e0b",
-    url: "https://www.notion.so/22c4930ab85f80b68a9ed7af9f3964f4",
-  },
+}
+
+function getQuickLinks(client: string): QuickLink[] {
+  return CLIENT_CONFIGS[client]?.quickLinks ?? DEFAULT_QUICK_LINKS
+}
+
+// Internal (admin-only) widget slugs
+const INTERNAL_WIDGETS = [
+  { slug: "hiring-dashboard", label: "Hiring Dashboard", desc: "Review and manage sales rep applicants", icon: "👥", color: "#2d62ff", url: "https://hiring.systemizedsales.com" },
+  { slug: "qc-dashboard", label: "QC Dashboard", desc: "Rep performance, SOP compliance, and pipeline hygiene", icon: "📋", color: "#8ceb4c", url: "/qc-dashboard" },
+]
+
+const CLIENT_WIDGETS = [
+  { slug: "playbook", label: "Sales Rep Playbook", desc: "Scripts, objections, and training resources", icon: "📖", color: "#ff5d00", url: "#" },
+  { slug: "rep-onboarding", label: "Sales Rep Onboarding", desc: "Onboarding portal for new sales reps", icon: "🚀", color: "#a78bfa", url: "#" },
+  { slug: "command-center", label: "Client Command Center", desc: "Your sales team metrics and performance at a glance", icon: "📊", color: "#2d62ff", url: "/command-center" },
 ]
 
 const KPI_PLACEHOLDERS = [
@@ -71,9 +84,13 @@ const SUPPORT_CHANNELS = [
   { tag: "#custom-payment-links", desc: "Payment link generation" },
 ]
 
-export default function CommandCenterClient({ clientName, clientSlug, userEmail }: { clientName: string; clientSlug?: string; userEmail: string }) {
+export default function CommandCenterClient({ clientName, clientSlug, userEmail, role, isAdmin }: { clientName: string; clientSlug?: string; userEmail: string; role: string; isAdmin: boolean }) {
   const [hoveredMember, setHoveredMember] = useState<string | null>(null)
+  const [selectedClient, setSelectedClient] = useState(clientName)
   const deptGroups = DEPT_ORDER.map(dept => ({ dept, members: TEAM.filter(m => m.dept === dept) }))
+
+  const activeClient = isAdmin ? selectedClient : clientName
+  const quickLinks = getQuickLinks(activeClient)
 
   return (
     <div style={{ minHeight: "100vh", background: "#050508", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -85,8 +102,47 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail 
           <div style={{ width: "1px", height: "14px", background: "#222" }} />
           <span style={{ fontSize: "12px", color: "#444" }}>Command Center</span>
         </div>
-        <div style={{ fontSize: "12px", color: "#444" }}>{userEmail}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {isAdmin && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(140,235,76,0.08)", border: "1px solid rgba(140,235,76,0.2)", borderRadius: "6px", padding: "3px 8px" }}>
+              <Shield size={10} color="#8ceb4c" />
+              <span style={{ fontSize: "11px", color: "#8ceb4c", fontWeight: 600 }}>Admin</span>
+            </div>
+          )}
+          <div style={{ fontSize: "12px", color: "#444" }}>{userEmail}</div>
+        </div>
       </div>
+
+      {/* Admin Client Switcher */}
+      {isAdmin && (
+        <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "11px", color: "#444", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", marginRight: "4px" }}>Viewing as:</span>
+            {CLIENTS.map(client => {
+              const isActive = selectedClient === client
+              return (
+                <button
+                  key={client}
+                  onClick={() => setSelectedClient(client)}
+                  style={{
+                    background: isActive ? "rgba(140,235,76,0.12)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${isActive ? "rgba(140,235,76,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    borderRadius: "20px",
+                    padding: "5px 14px",
+                    fontSize: "12px",
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? "#8ceb4c" : "#666",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {client}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <div style={{ position: "relative", overflow: "hidden", padding: "64px 32px 56px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -97,11 +153,11 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail 
           {/* Client badge */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(140,235,76,0.08)", border: "1px solid rgba(140,235,76,0.2)", borderRadius: "20px", padding: "6px 16px", marginBottom: "20px" }}>
             <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8ceb4c" }} />
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#8ceb4c", letterSpacing: "0.5px" }}>{clientName}</span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#8ceb4c", letterSpacing: "0.5px" }}>{activeClient}</span>
           </div>
 
           <h1 style={{ fontSize: "36px", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.5px" }}>
-            CEO Command Center
+            {activeClient} Command Center
           </h1>
           <p style={{ fontSize: "16px", color: "#666", margin: "0 0 8px" }}>
             Your team is here to help you win.
@@ -113,6 +169,84 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail 
       </div>
 
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "48px 32px" }}>
+
+        {/* Internal Widgets (admin only) */}
+        {isAdmin && (
+          <div style={{ marginBottom: "52px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444", marginBottom: "16px" }}>🔒 Internal Tools</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+              {INTERNAL_WIDGETS.map(widget => {
+                const isLive = widget.url !== "#"
+                return (
+                  <a
+                    key={widget.slug}
+                    href={isLive ? widget.url : undefined}
+                    target={isLive && widget.url.startsWith("http") ? "_blank" : undefined}
+                    rel="noreferrer"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${isLive ? `${widget.color}30` : "rgba(255,255,255,0.07)"}`,
+                      borderRadius: "14px",
+                      padding: "20px",
+                      textDecoration: "none",
+                      display: "block",
+                      cursor: isLive ? "pointer" : "default",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                      <div style={{ fontSize: "24px" }}>{widget.icon}</div>
+                      {isLive
+                        ? <ExternalLink size={13} color="#555" />
+                        : <span style={{ fontSize: "10px", color: "#444", background: "rgba(255,255,255,0.06)", borderRadius: "4px", padding: "2px 6px", fontWeight: 600, letterSpacing: "0.5px" }}>SOON</span>
+                      }
+                    </div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff", marginBottom: "6px" }}>{widget.label}</div>
+                    <div style={{ fontSize: "12px", color: "#555", lineHeight: 1.5 }}>{widget.desc}</div>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Client-Facing Widgets */}
+        <div style={{ marginBottom: "52px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444", marginBottom: "16px" }}>🧩 Client Tools</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+            {CLIENT_WIDGETS.map(widget => {
+              const isLive = widget.url !== "#"
+              return (
+                <a
+                  key={widget.slug}
+                  href={isLive ? widget.url : undefined}
+                  target={isLive && widget.url.startsWith("http") ? "_blank" : undefined}
+                  rel="noreferrer"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: `1px solid ${isLive ? `${widget.color}30` : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: "14px",
+                    padding: "20px",
+                    textDecoration: "none",
+                    display: "block",
+                    cursor: isLive ? "pointer" : "default",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "24px" }}>{widget.icon}</div>
+                    {isLive
+                      ? <ExternalLink size={13} color="#555" />
+                      : <span style={{ fontSize: "10px", color: "#444", background: "rgba(255,255,255,0.06)", borderRadius: "4px", padding: "2px 6px", fontWeight: 600, letterSpacing: "0.5px" }}>SOON</span>
+                    }
+                  </div>
+                  <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff", marginBottom: "6px" }}>{widget.label}</div>
+                  <div style={{ fontSize: "12px", color: "#555", lineHeight: 1.5 }}>{widget.desc}</div>
+                </a>
+              )
+            })}
+          </div>
+        </div>
 
         {/* KPI Row */}
         <div style={{ marginBottom: "52px" }}>
@@ -141,7 +275,7 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail 
         <div style={{ marginBottom: "52px" }}>
           <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444", marginBottom: "16px" }}>🚀 Quick Actions</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
-            {QUICK_LINKS.map(link => {
+            {quickLinks.map(link => {
               const Icon = link.icon
               const isLive = link.url !== "#"
               return (

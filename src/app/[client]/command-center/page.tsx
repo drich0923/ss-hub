@@ -21,5 +21,7 @@ export default async function CommandCenterPage({ params }: { params: Promise<{ 
   }
 
   const clientName = profile?.client || decodeURIComponent(clientSlug);
-  return <CommandCenterClient clientName={clientName} clientSlug={clientSlug} userEmail={user.email || ""} />;
+  const role = profile?.role || "client";
+  const isAdmin = role === "admin";
+  return <CommandCenterClient clientName={clientName} clientSlug={clientSlug} userEmail={user.email || ""} role={role} isAdmin={isAdmin} />;
 }
