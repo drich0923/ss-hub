@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ExternalLink, Mail, BarChart2, ClipboardList, BookOpen, MessageSquare, TrendingUp, Phone, Calendar, DollarSign, Shield } from "lucide-react"
-import { CLIENTS } from "@/lib/apps"
+// CLIENTS import removed — switcher moved to hub homepage
 
 const TEAM = [
   { name: "Dylan Rich", title: "Co-Founder", dept: "Leadership", email: "dylan@systemizedsales.com", initials: "DR", color: "#2d62ff", photo: "/headshots/dylan_rich.jpg", bestFor: "Big picture strategy & partnerships" },
@@ -86,11 +86,9 @@ const SUPPORT_CHANNELS = [
 
 export default function CommandCenterClient({ clientName, clientSlug, userEmail, role, isAdmin }: { clientName: string; clientSlug?: string; userEmail: string; role: string; isAdmin: boolean }) {
   const [hoveredMember, setHoveredMember] = useState<string | null>(null)
-  const [selectedClient, setSelectedClient] = useState(clientName)
   const deptGroups = DEPT_ORDER.map(dept => ({ dept, members: TEAM.filter(m => m.dept === dept) }))
 
-  const activeClient = isAdmin ? selectedClient : clientName
-  const quickLinks = getQuickLinks(activeClient)
+  const quickLinks = getQuickLinks(clientName)
 
   return (
     <div style={{ minHeight: "100vh", background: "#050508", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -113,37 +111,6 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail,
         </div>
       </div>
 
-      {/* Admin Client Switcher */}
-      {isAdmin && (
-        <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "11px", color: "#444", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", marginRight: "4px" }}>Viewing as:</span>
-            {CLIENTS.map(client => {
-              const isActive = selectedClient === client
-              return (
-                <button
-                  key={client}
-                  onClick={() => setSelectedClient(client)}
-                  style={{
-                    background: isActive ? "rgba(140,235,76,0.12)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${isActive ? "rgba(140,235,76,0.3)" : "rgba(255,255,255,0.08)"}`,
-                    borderRadius: "20px",
-                    padding: "5px 14px",
-                    fontSize: "12px",
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? "#8ceb4c" : "#666",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {client}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Hero */}
       <div style={{ position: "relative", overflow: "hidden", padding: "64px 32px 56px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         {/* Background glow */}
@@ -153,11 +120,11 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail,
           {/* Client badge */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(140,235,76,0.08)", border: "1px solid rgba(140,235,76,0.2)", borderRadius: "20px", padding: "6px 16px", marginBottom: "20px" }}>
             <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8ceb4c" }} />
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#8ceb4c", letterSpacing: "0.5px" }}>{activeClient}</span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#8ceb4c", letterSpacing: "0.5px" }}>{clientName}</span>
           </div>
 
           <h1 style={{ fontSize: "36px", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.5px" }}>
-            {activeClient} Command Center
+            {clientName} Command Center
           </h1>
           <p style={{ fontSize: "16px", color: "#666", margin: "0 0 8px" }}>
             Your team is here to help you win.

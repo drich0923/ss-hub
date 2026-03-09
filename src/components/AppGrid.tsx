@@ -21,9 +21,11 @@ interface Props {
   isAdmin: boolean;
   userRole: string;
   userClient: string | null;
+  activeClient?: string;
 }
 
-export default function AppGrid({ apps, permittedSlugs, isAdmin, userRole, userClient }: Props) {
+export default function AppGrid({ apps, permittedSlugs, isAdmin, userRole, userClient, activeClient }: Props) {
+  const resolvedClient = activeClient || userClient || "Budgetdog";
   // Filter apps by role
   const visibleApps = userRole === 'sales_rep'
     ? apps.filter(a => a.audience === 'all' || a.audience === 'sales_rep')
@@ -138,8 +140,8 @@ export default function AppGrid({ apps, permittedSlugs, isAdmin, userRole, userC
             {/* Button */}
             {hasAccess && isLive ? (
               <a
-                href={app.url}
-                target="_blank"
+                href={app.url.includes("[client]") ? app.url.replace("[client]", encodeURIComponent(resolvedClient)) : app.url}
+                target={app.url.startsWith("http") ? "_blank" : undefined}
                 rel="noopener noreferrer"
                 style={{
                   display: "flex",

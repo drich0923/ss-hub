@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { APPS } from "@/lib/apps";
 import AppGrid from "@/components/AppGrid";
+import ClientSwitcher from "@/components/ClientSwitcher";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -22,6 +24,11 @@ export default async function HomePage() {
 
   const permittedSlugs = permissions?.map(p => p.app_slug) ?? [];
   const isAdmin = profile?.role === "admin";
+
+  // Determine active client from cookie (admins only) or profile
+  const cookieStore = await cookies();
+  const cookieClient = cookieStore.get("active_client")?.value;
+  const activeClient = isAdmin && cookieClient ? cookieClient : (profile?.client || "Budgetdog");
 
   return (
     <div style={{ minHeight: "100vh", background: "#050508" }}>
@@ -94,6 +101,9 @@ export default async function HomePage() {
         </div>
       </header>
 
+      {/* Admin Client Switcher */}
+      {isAdmin && <ClientSwitcher activeClient={activeClient} />}
+
       {/* Main */}
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "48px 24px" }}>
         {/* Greeting */}
@@ -122,7 +132,7 @@ export default async function HomePage() {
         </div>
 
         {/* App Grid */}
-        <AppGrid apps={APPS} permittedSlugs={permittedSlugs} isAdmin={isAdmin} userRole={profile?.role ?? "manager"} userClient={profile?.client ?? null} />
+        <AppGrid apps={APPS} permittedSlugs={permittedSlugs} isAdmin={isAdmin} userRole={profile?.role ?? "manager"} userClient={profile?.client ?? null} activeClient={activeClient} />
       </main>
 
       <footer style={{ textAlign: "center", padding: "32px 24px", color: "#333", fontSize: "12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
