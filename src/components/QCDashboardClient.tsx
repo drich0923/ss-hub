@@ -1,5 +1,5 @@
 "use client"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 
 type QCReport = {
   id: string
@@ -15,8 +15,12 @@ type QCReport = {
   appts_total: number
   appts_shows: number
   appts_no_shows: number
+  appts_cancelled: number
+  appts_rescheduled: number
+  appts_closed: number
   show_rate: number
   close_rate: number
+  no_show_rate: number | null
   active_deals: number
   pipeline_hygiene_issues: number
   slack_ts: string | null
@@ -69,11 +73,163 @@ function StatPill({ label, value, color }: { label: string; value: string; color
   )
 }
 
+function slackThreadUrl(channel: string, ts: string) {
+  return `https://systemizedsales.slack.com/archives/${channel}/p${ts.replace(".", "")}`
+}
+
+function scoreColor(score: number | null) {
+  return score == null ? "#555" : score >= 80 ? "#8ceb4c" : score >= 60 ? "#f59e0b" : "#ff5555"
+}
+
+function ModalMetric({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+      <div style={{ fontSize: "20px", fontWeight: 700, color: color ?? "#fff" }}>{value}</div>
+      <div style={{ fontSize: "11px", color: "#555", marginTop: "3px" }}>{label}</div>
+      {sub && <div style={{ fontSize: "10px", color: "#333", marginTop: "1px" }}>{sub}</div>}
+    </div>
+  )
+}
+
+function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [onClose])
+
+  const sc = scoreColor(r.score_pct)
+  const slackUrl = r.slack_ts && r.slack_channel ? slackThreadUrl(r.slack_channel, r.slack_ts) : null
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "40px 16px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "700px", background: "#0d0d14", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", position: "relative" }}>
+
+        {/* Close button */}
+        <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#888", fontSize: "16px", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+
+        {/* Header */}
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}>{r.rep_name}</div>
+            <span style={{ fontSize: "11px", background: "rgba(45,98,255,0.1)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "4px", padding: "3px 10px", color: "#7090ff" }}>{r.client}</span>
+          </div>
+          <div style={{ fontSize: "12px", color: "#555", marginBottom: "12px" }}>{r.report_date}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "32px", fontWeight: 800, color: sc }}>{r.score_pct != null ? `${r.score_pct}%` : "—"}</div>
+            {r.rank && <span style={{ fontSize: "12px", fontWeight: 600, color: RANK_COLORS[r.rank] ?? "#555", background: `${RANK_COLORS[r.rank] ?? "#555"}15`, borderRadius: "6px", padding: "4px 10px" }}>{r.rank}</span>}
+            {slackUrl && (
+              <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", fontSize: "12px", color: "#7090ff", background: "rgba(45,98,255,0.08)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "8px", padding: "6px 14px", textDecoration: "none", fontWeight: 500 }}>View Full Report in Slack →</a>
+            )}
+          </div>
+        </div>
+
+        {/* Section 1: Score Breakdown */}
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Score Breakdown</div>
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ fontSize: "12px", color: "#888" }}>{r.checks_passed ?? 0} / {r.checks_total ?? 0} checks passed</span>
+              <span style={{ fontSize: "12px", color: sc }}>{r.score_pct ?? 0}%</span>
+            </div>
+            <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
+              <div style={{ width: `${r.score_pct ?? 0}%`, height: "100%", background: sc, borderRadius: "4px", transition: "width 0.3s" }} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+            <div style={{ background: "rgba(140,235,76,0.06)", border: "1px solid rgba(140,235,76,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.pre_call_pct) }}>{r.pre_call_pct != null ? `${r.pre_call_pct}%` : "—"}</div>
+              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>PRE-CALL</div>
+            </div>
+            <div style={{ background: "rgba(45,98,255,0.06)", border: "1px solid rgba(45,98,255,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.during_call_pct) }}>{r.during_call_pct != null ? `${r.during_call_pct}%` : "—"}</div>
+              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>DURING CALL</div>
+            </div>
+            <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.12)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: scoreColor(r.post_call_pct) }}>{r.post_call_pct != null ? `${r.post_call_pct}%` : "—"}</div>
+              <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>POST-CALL</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Appointments */}
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Appointments</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "10px" }}>
+            <ModalMetric label="Total" value={r.appts_total.toString()} />
+            <ModalMetric label="Shows" value={r.appts_shows.toString()} color="#8ceb4c" />
+            <ModalMetric label="No-Shows" value={r.appts_no_shows.toString()} color={r.appts_no_shows > 0 ? "#ff5555" : "#8ceb4c"} />
+            <ModalMetric label="Cancelled" value={(r.appts_cancelled ?? 0).toString()} color={(r.appts_cancelled ?? 0) > 0 ? "#f59e0b" : "#8ceb4c"} />
+            <ModalMetric label="Rescheduled" value={(r.appts_rescheduled ?? 0).toString()} color="#aaa" />
+            <ModalMetric label="Closed" value={(r.appts_closed ?? 0).toString()} color={(r.appts_closed ?? 0) > 0 ? "#8ceb4c" : "#aaa"} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+            <ModalMetric label="Show Rate" value={`${r.show_rate ?? 0}%`} color={(r.show_rate ?? 0) >= 70 ? "#8ceb4c" : "#f59e0b"} />
+            <ModalMetric label="No-Show Rate" value={`${r.no_show_rate ?? 0}%`} color={(r.no_show_rate ?? 0) > 20 ? "#ff5555" : "#8ceb4c"} />
+            <ModalMetric label="Close Rate" value={`${r.close_rate ?? 0}%`} color={(r.close_rate ?? 0) >= 20 ? "#8ceb4c" : "#f59e0b"} />
+          </div>
+        </div>
+
+        {/* Section 3: Activity */}
+        {(r.avg_dials != null || r.avg_sms != null || r.avg_emails != null || r.avg_talk_time_min != null || r.productivity_rate != null) && (
+          <div style={{ marginBottom: "24px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Activity</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "8px", marginBottom: r.productivity_rate != null ? "12px" : "0" }}>
+              {r.avg_dials != null && <ModalMetric label="Avg Dials" value={r.avg_dials.toString()} />}
+              {r.avg_sms != null && <ModalMetric label="Avg SMS" value={r.avg_sms.toString()} />}
+              {r.avg_emails != null && <ModalMetric label="Avg Emails" value={r.avg_emails.toString()} />}
+              {r.avg_talk_time_min != null && <ModalMetric label="Avg Talk Time" value={`${r.avg_talk_time_min}m`} />}
+            </div>
+            {r.productivity_rate != null && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "12px", color: "#888" }}>Productivity Rate</span>
+                  <span style={{ fontSize: "12px", color: r.productivity_rate >= 70 ? "#8ceb4c" : "#f59e0b" }}>{r.productivity_rate}%</span>
+                </div>
+                <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
+                  <div style={{ width: `${r.productivity_rate}%`, height: "100%", background: r.productivity_rate >= 70 ? "#8ceb4c" : "#f59e0b", borderRadius: "4px" }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Section 4: Pipeline Health */}
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "#555", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pipeline Health</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+            <ModalMetric label="Overdue Tasks" value={r.overdue_tasks_count.toString()} color={r.overdue_tasks_count > 0 ? "#ff5555" : "#8ceb4c"} />
+            <ModalMetric label="Pipeline Issues" value={r.pipeline_hygiene_issues.toString()} color={r.pipeline_hygiene_issues > 0 ? "#ff5555" : "#8ceb4c"} />
+            <ModalMetric label="Unread Convos" value={r.unread_convos.toString()} color={r.unread_convos > 0 ? "#ff5555" : "#8ceb4c"} />
+            <ModalMetric label="Active Deals" value={r.active_deals.toString()} color="#aaa" />
+          </div>
+        </div>
+
+        {/* Section 5: Full Audit */}
+        <div style={{ background: "rgba(45,98,255,0.04)", border: "1px solid rgba(45,98,255,0.12)", borderRadius: "12px", padding: "20px" }}>
+          <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff", marginBottom: "6px" }}>📋 Full Audit Available in Slack</div>
+          <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.6", marginBottom: slackUrl ? "14px" : "0" }}>
+            The full SOP audit — per-appointment pre/during/post call breakdown, overdue task list, and pipeline issue detail — is in the Slack thread.
+          </div>
+          {slackUrl && (
+            <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", fontSize: "13px", fontWeight: 600, color: "#fff", background: "rgba(45,98,255,0.3)", border: "1px solid rgba(45,98,255,0.4)", borderRadius: "8px", padding: "10px 20px", textDecoration: "none" }}>
+              Open Slack Thread →
+            </a>
+          )}
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 export default function QCDashboardClient({ reports }: { reports: QCReport[] }) {
   const [filterClient, setFilterClient] = useState("all")
   const [filterRep, setFilterRep] = useState("all")
   const [sortBy, setSortBy] = useState<"date" | "score" | "show_rate" | "close_rate">("date")
   const [view, setView] = useState<"table" | "cards">("table")
+  const [selectedReport, setSelectedReport] = useState<QCReport | null>(null)
+  const closeModal = useCallback(() => setSelectedReport(null), [])
 
   const clients = useMemo(() => ["all", ...Array.from(new Set(reports.map(r => r.client)))], [reports])
   const reps = useMemo(() => {
@@ -193,7 +349,7 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
                 </thead>
                 <tbody>
                   {filtered.map((r, i) => (
-                    <tr key={r.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <tr key={r.id} onClick={() => setSelectedReport(r)} style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 0.15s" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                       <td style={{ padding: "14px 16px", fontSize: "12px", color: "#888", whiteSpace: "nowrap" as const }}>{r.report_date}</td>
                       <td style={{ padding: "14px 16px" }}>
                         <span style={{ fontSize: "11px", background: "rgba(45,98,255,0.1)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "4px", padding: "2px 8px", color: "#7090ff" }}>{r.client}</span>
@@ -245,9 +401,9 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
         {view === "cards" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "14px" }}>
             {filtered.map(r => {
-              const scoreColor = r.score_pct == null ? "#555" : r.score_pct >= 80 ? "#8ceb4c" : r.score_pct >= 60 ? "#f59e0b" : "#ff5555"
+              const cardScoreColor = r.score_pct == null ? "#555" : r.score_pct >= 80 ? "#8ceb4c" : r.score_pct >= 60 ? "#f59e0b" : "#ff5555"
               return (
-                <div key={r.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${scoreColor}25`, borderRadius: "14px", padding: "20px" }}>
+                <div key={r.id} onClick={() => setSelectedReport(r)} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${cardScoreColor}25`, borderRadius: "14px", padding: "20px", cursor: "pointer", transition: "background 0.15s" }} onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")} onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
                     <div>
                       <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff" }}>{r.rep_name}</div>
@@ -310,6 +466,8 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
         )}
 
       </div>
+
+      {selectedReport && <ReportDetailModal report={selectedReport} onClose={closeModal} />}
     </div>
   )
 }
