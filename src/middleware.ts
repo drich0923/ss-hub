@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public API routes (webhooks) — skip auth
-  if (pathname.startsWith('/api/ghl-webhook') || pathname.startsWith('/api/run-migration')) {
+  if (pathname.startsWith('/api/ghl-webhook')) {
     return supabaseResponse
   }
 
