@@ -151,6 +151,49 @@ async function handleAppointment(type: string, locationId: string, id: string, a
   })
 }
 
+async function handlePcnSubmission(locationId: string, body: Record<string, unknown>) {
+  // GHL form submission payload — fields come through as custom field key/value pairs
+  // Try both the friendly label and common key formats
+  const f = (key: string, ...aliases: string[]): unknown => {
+    for (const k of [key, ...aliases]) {
+      if (body[k] !== undefined && body[k] !== null) return body[k]
+      // Also check nested formData/fields object
+      const fd = body.formData ?? body.fields ?? body.customFields
+      if (fd && typeof fd === "object" && (fd as Record<string, unknown>)[k] !== undefined) {
+        return (fd as Record<string, unknown>)[k]
+      }
+    }
+    return null
+  }
+
+  await upsert("ghl_pcns", {
+    location_id: locationId,
+    contact_id: body.contactId ?? body.contact_id ?? null,
+    contact_email: body.email ?? body.contactEmail ?? null,
+    contact_phone: f("Client Phone (copy paste into here)", "phone", "contactPhone"),
+    appointment_id: f("PCN - Appointment ID", "appointment_id", "appointmentId"),
+    call_outcome: f("Call Outcome", "PCN - Call Outcome", "pcn_call_outcome"),
+    first_call_or_followup: f("First Call or Follow Up?", "PCN - First Call or Follow Up"),
+    cash_collected: f("Cash Collected $", "PCN - Cash Collected"),
+    signed_notes: f("Signed Notes", "PCN - Signed Notes"),
+    qualification_status: f("What is the Prospect's Qualification Status?", "PCN - Qualification Status"),
+    financial_health_quiz: f("Did they Complete the Financial Health Quiz?"),
+    offer_made: f("Did you make an offer?", "PCN - Did You Make an Offer?"),
+    why_didnt_move_forward: f("Why didn't the prospect move forward?", "PCN - Why Didn't the Prospect Move Forward Today?"),
+    call_notes: f("Call notes. Be thorough: what was there buying criteria, what was the objection, what are next steps..."),
+    followup_scheduled: f("Was a follow up scheduled?", "PCN - Was a Follow-Up Scheduled?"),
+    expected_close_date: f("When is this expected to close?"),
+    no_show_communicative: f("Was the no show communicative?", "PCN - Was the No-Show Communicative?"),
+    dq_reason: f("DQ Reason", "PCN - DQ Reason"),
+    dq_notes: f("DQ Notes", "PCN - DQ Notes"),
+    cancellation_reason: f("Cancellation Reason", "PCN - Cancellation Reason"),
+    cancellation_notes: f("Notes", "PCN - Cancellation Notes"),
+    submitted_at: new Date().toISOString(),
+    raw: body,
+    synced_at: new Date().toISOString(),
+  })
+}
+
 async function handleContact(type: string, locationId: string, id: string, contact: Record<string, unknown>) {
   if (type === "ContactDelete") {
     // Clear contact references but don't delete opp/task/appt rows
@@ -182,6 +225,9 @@ async function processEvent(body: Record<string, unknown>) {
   } else if (type.startsWith("Contact")) {
     const contact = (body.contact ?? body) as Record<string, unknown>
     await handleContact(type, locationId, id, contact)
+  } else if (type === "FormSubmitted" || type === "SurveySubmitted") {
+    // PCN form submission
+    await handlePcnSubmission(locationId, body)
   }
 }
 
