@@ -134,6 +134,7 @@ function CheckIcon({ pass }: { pass: boolean | null }) {
 function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: () => void }) {
   const [detail, setDetail] = useState<{ appointments: QCAppointment[]; pipeline_issues: QCPipelineIssue[] } | null>(null)
   const [detailLoading, setDetailLoading] = useState(true)
+  const [copyState, setCopyState] = useState<"idle" | "loading" | "copied" | "error">("idle")
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -187,6 +188,28 @@ function ReportDetailModal({ report: r, onClose }: { report: QCReport; onClose: 
 
         {/* Top-right buttons */}
         <div style={{ position: "absolute", top: "16px", right: "16px", display: "flex", gap: "8px" }}>
+          {r.slack_ts && r.slack_channel && (
+            <button
+              disabled={copyState === "loading"}
+              onClick={async () => {
+                setCopyState("loading")
+                try {
+                  const res = await fetch(`/api/qc-slack-thread?slack_channel=${encodeURIComponent(r.slack_channel!)}&slack_ts=${encodeURIComponent(r.slack_ts!)}`)
+                  if (!res.ok) throw new Error("fetch failed")
+                  const { text } = await res.json()
+                  await navigator.clipboard.writeText(text)
+                  setCopyState("copied")
+                  setTimeout(() => setCopyState("idle"), 2000)
+                } catch {
+                  setCopyState("error")
+                  setTimeout(() => setCopyState("idle"), 2000)
+                }
+              }}
+              style={{ fontSize: "12px", color: copyState === "copied" ? "#8ceb4c" : copyState === "error" ? "#ff5555" : "#7090ff", background: "rgba(45,98,255,0.08)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "8px", padding: "6px 14px", cursor: copyState === "loading" ? "wait" : "pointer", fontWeight: 500 }}
+            >
+              {copyState === "loading" ? "Copying..." : copyState === "copied" ? "Copied ✓" : copyState === "error" ? "Failed" : "📋 Copy Report"}
+            </button>
+          )}
           {slackUrl && (
             <a href={slackUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "#7090ff", background: "rgba(45,98,255,0.08)", border: "1px solid rgba(45,98,255,0.2)", borderRadius: "8px", padding: "6px 14px", textDecoration: "none", fontWeight: 500 }}>View in Slack</a>
           )}
