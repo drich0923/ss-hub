@@ -375,9 +375,17 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
   const withProd = filtered.filter(r => r.productivity_rate != null)
   const avgProductivity = withProd.length ? Math.round(withProd.reduce((s, r) => s + (r.productivity_rate ?? 0), 0) / withProd.length) : null
 
-  const totalOverdue = filtered.reduce((s, r) => s + r.overdue_tasks_count, 0)
-  const totalPipeline = filtered.reduce((s, r) => s + r.pipeline_hygiene_issues, 0)
-  const totalUnread = filtered.reduce((s, r) => s + r.unread_convos, 0)
+  // Current metrics — use most recent report per rep, not a running sum
+  const latestByRep = Object.values(
+    filtered.reduce((acc, r) => {
+      const key = r.client + '__' + r.rep_name
+      if (!acc[key] || r.report_date > acc[key].report_date) acc[key] = r
+      return acc
+    }, {} as Record<string, QCReport>)
+  )
+  const totalOverdue = latestByRep.reduce((s, r) => s + r.overdue_tasks_count, 0)
+  const totalPipeline = latestByRep.reduce((s, r) => s + r.pipeline_hygiene_issues, 0)
+  const totalUnread = latestByRep.reduce((s, r) => s + r.unread_convos, 0)
 
   const sel = { background: "#0d0d14", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: "12px", padding: "7px 12px", outline: "none", cursor: "pointer" } as React.CSSProperties
 
@@ -425,7 +433,7 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
             { label: "Current Overdue Tasks", value: totalOverdue.toString(), color: totalOverdue > 10 ? "#ff5555" : totalOverdue > 0 ? "#f59e0b" : "#8ceb4c", sub: "Snapshot at report time" },
             { label: "Current Pipeline Issues", value: totalPipeline.toString(), color: totalPipeline > 5 ? "#ff5555" : totalPipeline > 0 ? "#f59e0b" : "#8ceb4c", sub: "Hygiene flags" },
             { label: "Convos Needing Reply", value: totalUnread.toString(), color: totalUnread > 5 ? "#ff5555" : totalUnread > 0 ? "#f59e0b" : "#8ceb4c", sub: "Unread / active" },
-            { label: "Active Deals", value: filtered.reduce((s, r) => s + r.active_deals, 0).toString(), color: "#aaa", sub: "Total in pipeline" },
+            { label: "Active Deals", value: latestByRep.reduce((s, r) => s + r.active_deals, 0).toString(), color: "#aaa", sub: "Current total" },
           ].map(k => (
             <div key={k.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", padding: "20px" }}>
               <div style={{ fontSize: "26px", fontWeight: 800, color: k.color }}>{k.value}</div>
