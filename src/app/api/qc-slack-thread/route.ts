@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   // Convert Slack mrkdwn links <url|name> → name (url is in the GHL app)
   // Since pasting into Slack DM doesn't render mrkdwn, keep the display name + strip raw URL
   function convertMrkdwn(text: string): string {
-    return text.replace(/<(https?:[^|>]+)\|([^>]+)>/g, (_, url, name) => `${name}`)
+    return text.replace(/<(https?:[^|>]+)\|([^>]+)>/g, (_, url, name) => `${name}\n   • ${url}`)
   }
   const threadText = messages.slice(1).map((m: { text: string }) => convertMrkdwn(m.text)).join('\n\n')
 
