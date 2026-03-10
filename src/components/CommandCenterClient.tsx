@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ExternalLink, Mail, BarChart2, ClipboardList, BookOpen, MessageSquare, TrendingUp, Phone, Calendar, DollarSign, Shield, Pencil, Plus, Trash2, X, Check } from "lucide-react"
+import { ExternalLink, Mail, BarChart2, ClipboardList, BookOpen, MessageSquare, TrendingUp, Phone, Calendar, DollarSign, Shield, Pencil, Plus, Trash2, X, Check, AlertTriangle, RefreshCw } from "lucide-react"
 
 /* ───────── Types ───────── */
 
@@ -41,8 +41,9 @@ const DEFAULT_QUICK_LINKS: QuickLinkData[] = [
   { label: "Post Call Notes", desc: "Submit and review PCN entries for every appointment", color: "#f59e0b", url: "#" },
 ]
 
-const CLIENT_CONFIGS: Record<string, { quickLinks: QuickLinkData[] }> = {
+const CLIENT_CONFIGS: Record<string, { quickLinks: QuickLinkData[]; ghlLocationId?: string }> = {
   Budgetdog: {
+    ghlLocationId: "IKw1E7VUZwSDe8WFAxIM",
     quickLinks: [
       { label: "Sales Tracker", desc: "View pipeline, revenue, and rep performance metrics", color: "#2d62ff", url: "https://docs.google.com/spreadsheets/d/1LwP5gYv93JQPaw65f_kNxjnOF_TyUXB0_AUTQEWkkMk/edit?gid=457479693#gid=457479693" },
       { label: "Scorecard", desc: "Rep scorecards, KPIs, and performance benchmarks", color: "#8ceb4c", url: "https://docs.google.com/spreadsheets/d/1SqW1lshDXpx20Ayxx1TE5TtvQ168JtxRrf_ROjX9EBs/edit?gid=3306932#gid=3306932" },
@@ -240,6 +241,171 @@ function Toast({ message, type }: { message: string; type: "success" | "error" }
     }}>
       {type === "success" ? <Check size={14} /> : <X size={14} />}
       {message}
+    </div>
+  )
+}
+
+/* ───────── GHL Live Feed ───────── */
+
+type GHLStats = { open_opps: number; open_value: number; overdue_tasks: number; upcoming_appts: number }
+type GHLOpp = { id: string; contact_name: string; contact_url: string; stage_name: string; assigned_to: string; monetary_value: number; updated_at: string }
+type GHLTask = { id: string; title: string; contact_name: string; contact_url: string; assigned_to: string; due_date: string; completed: boolean }
+type GHLAppt = { id: string; title: string; contact_name: string; contact_url: string; start_time: string; calendar_name: string; status: string }
+type GHLData = { opportunities: GHLOpp[]; tasks: GHLTask[]; appointments: GHLAppt[]; stats: GHLStats }
+
+function GHLLiveFeed({ locationId }: { locationId: string }) {
+  const [data, setData] = useState<GHLData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<"opportunities" | "tasks" | "appointments">("opportunities")
+
+  const fetchData = useCallback(() => {
+    fetch(`/api/ghl-data?location_id=${encodeURIComponent(locationId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setData(d) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [locationId])
+
+  useEffect(() => {
+    fetchData()
+    const interval = setInterval(fetchData, 60000)
+    return () => clearInterval(interval)
+  }, [fetchData])
+
+  const fmtCurrency = (v: number) => "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 })
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  const fmtDateTime = (d: string) => new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+  const isOverdue = (d: string) => new Date(d) < new Date()
+
+  if (loading) {
+    return (
+      <div style={{ marginBottom: "52px" }}>
+        <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444", marginBottom: "16px" }}>{"\u{1F4E1}"} GHL Live Feed</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", padding: "20px", height: "80px" }}>
+              <div style={{ width: "60%", height: "14px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", marginBottom: "8px" }} />
+              <div style={{ width: "40%", height: "10px", background: "rgba(255,255,255,0.03)", borderRadius: "4px" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  const stats = data.stats
+  const statCards = [
+    { label: "Open Deals", value: String(stats.open_opps), icon: TrendingUp, color: "#2d62ff" },
+    { label: "Pipeline Value", value: fmtCurrency(stats.open_value), icon: DollarSign, color: "#8ceb4c" },
+    { label: "Overdue Tasks", value: String(stats.overdue_tasks), icon: AlertTriangle, color: stats.overdue_tasks > 0 ? "#ff3b30" : "#666" },
+    { label: "Upcoming Appts", value: String(stats.upcoming_appts), icon: Calendar, color: "#a78bfa" },
+  ]
+
+  const tabs = [
+    { key: "opportunities" as const, label: "Opportunities" },
+    { key: "tasks" as const, label: "Tasks" },
+    { key: "appointments" as const, label: "Appointments" },
+  ]
+
+  const contactLink = (name: string, url: string) =>
+    url ? <a href={url} target="_blank" rel="noreferrer" style={{ color: "#2d62ff", textDecoration: "none", fontSize: "13px" }}>{name || "—"}</a>
+      : <span style={{ color: "#fff", fontSize: "13px" }}>{name || "—"}</span>
+
+  return (
+    <div style={{ marginBottom: "52px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+        <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444" }}>{"\u{1F4E1}"} GHL Live Feed</div>
+        <button onClick={() => { setLoading(true); fetchData() }} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+          <RefreshCw size={12} color="#444" />
+          <span style={{ fontSize: "10px", color: "#444" }}>Refresh</span>
+        </button>
+      </div>
+
+      {/* Stat Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "24px" }}>
+        {statCards.map(s => {
+          const Icon = s.icon
+          return (
+            <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${s.color === "#ff3b30" && stats.overdue_tasks > 0 ? "rgba(255,59,48,0.25)" : "rgba(255,255,255,0.07)"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "14px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={18} color={s.color} />
+              </div>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: s.color === "#ff3b30" && stats.overdue_tasks > 0 ? "#ff3b30" : "#fff", lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: "12px", color: "#888", fontWeight: 500, marginTop: "4px" }}>{s.label}</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "4px", marginBottom: "16px", background: "rgba(255,255,255,0.03)", borderRadius: "10px", padding: "4px", border: "1px solid rgba(255,255,255,0.07)" }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600,
+            background: tab === t.key ? "rgba(140,235,76,0.12)" : "transparent",
+            color: tab === t.key ? "#8ceb4c" : "#555",
+            transition: "all 0.15s",
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", overflow: "hidden" }}>
+        {tab === "opportunities" && (
+          data.opportunities.length === 0
+            ? <div style={{ padding: "32px", textAlign: "center", color: "#444", fontSize: "13px" }}>No open opportunities</div>
+            : <div>
+                {data.opportunities.map((opp, i) => (
+                  <div key={opp.id} style={{ padding: "14px 18px", borderBottom: i < data.opportunities.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 140px", minWidth: 0 }}>{contactLink(opp.contact_name, opp.contact_url)}</div>
+                    <div style={{ flex: "0 0 120px", fontSize: "12px", color: "#666" }}>{opp.stage_name || "—"}</div>
+                    <div style={{ flex: "0 0 100px", fontSize: "12px", color: "#555" }}>{opp.assigned_to || "—"}</div>
+                    <div style={{ flex: "0 0 90px", fontSize: "13px", fontWeight: 600, color: "#8ceb4c", textAlign: "right" }}>{opp.monetary_value ? fmtCurrency(opp.monetary_value) : "—"}</div>
+                    <div style={{ flex: "0 0 80px", fontSize: "11px", color: "#444", textAlign: "right" }}>{opp.updated_at ? fmtDate(opp.updated_at) : "—"}</div>
+                  </div>
+                ))}
+              </div>
+        )}
+
+        {tab === "tasks" && (
+          data.tasks.length === 0
+            ? <div style={{ padding: "32px", textAlign: "center", color: "#444", fontSize: "13px" }}>No open tasks</div>
+            : <div>
+                {data.tasks.map((task, i) => (
+                  <div key={task.id} style={{ padding: "14px 18px", borderBottom: i < data.tasks.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 180px", fontSize: "13px", color: "#fff", minWidth: 0 }}>{task.title || "—"}</div>
+                    <div style={{ flex: "0 0 130px", minWidth: 0 }}>{contactLink(task.contact_name, task.contact_url)}</div>
+                    <div style={{ flex: "0 0 100px", fontSize: "12px", color: "#555" }}>{task.assigned_to || "—"}</div>
+                    <div style={{ flex: "0 0 90px", fontSize: "12px", fontWeight: 600, color: task.due_date && isOverdue(task.due_date) ? "#ff3b30" : "#666", textAlign: "right" }}>
+                      {task.due_date ? fmtDate(task.due_date) : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+        )}
+
+        {tab === "appointments" && (
+          data.appointments.length === 0
+            ? <div style={{ padding: "32px", textAlign: "center", color: "#444", fontSize: "13px" }}>No upcoming appointments</div>
+            : <div>
+                {data.appointments.map((appt, i) => (
+                  <div key={appt.id} style={{ padding: "14px 18px", borderBottom: i < data.appointments.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 180px", fontSize: "13px", color: "#fff", minWidth: 0 }}>{appt.title || "—"}</div>
+                    <div style={{ flex: "0 0 130px", minWidth: 0 }}>{contactLink(appt.contact_name, appt.contact_url)}</div>
+                    <div style={{ flex: "0 0 130px", fontSize: "12px", color: "#666" }}>{appt.start_time ? fmtDateTime(appt.start_time) : "—"}</div>
+                    <div style={{ flex: "0 0 100px", fontSize: "12px", color: "#555" }}>{appt.calendar_name || "—"}</div>
+                    <div style={{ flex: "0 0 70px", fontSize: "11px", color: appt.status === "confirmed" ? "#8ceb4c" : "#f59e0b", textAlign: "right", fontWeight: 600 }}>{appt.status || "—"}</div>
+                  </div>
+                ))}
+              </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -538,6 +704,11 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail,
             )}
           </div>
         </div>
+
+        {/* GHL Live Feed */}
+        {CLIENT_CONFIGS[clientName]?.ghlLocationId ? (
+          <GHLLiveFeed locationId={CLIENT_CONFIGS[clientName].ghlLocationId!} />
+        ) : null}
 
         {/* Support Team */}
         <div style={{ marginBottom: "52px" }}>
