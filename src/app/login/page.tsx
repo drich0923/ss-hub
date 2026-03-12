@@ -19,7 +19,11 @@ function LoginForm() {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: "https://app.systemizedsales.com/auth/callback" },
+      options: {
+        redirectTo: "https://app.systemizedsales.com/auth/callback",
+        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
     });
   }
 

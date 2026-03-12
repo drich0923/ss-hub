@@ -705,11 +705,6 @@ export default function CommandCenterClient({ clientName, clientSlug, userEmail,
           </div>
         </div>
 
-        {/* GHL Live Feed */}
-        {CLIENT_CONFIGS[clientName]?.ghlLocationId ? (
-          <GHLLiveFeed locationId={CLIENT_CONFIGS[clientName].ghlLocationId!} />
-        ) : null}
-
         {/* Support Team */}
         <div style={{ marginBottom: "52px" }}>
           <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" as const, color: "#444", marginBottom: "20px" }}>{"\u{1F465}"} Your Support Team</div>

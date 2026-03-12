@@ -82,47 +82,57 @@ function buildContactUrl(locationId: string, contactId: string | undefined) {
 }
 
 async function handleOpportunity(type: string, locationId: string, id: string, opp: Record<string, unknown>) {
-  if (type === "OpportunityDelete") {
+  if (type.toLowerCase() === "opportunitydelete") {
     await deleteRow("ghl_opportunities", id)
     return
   }
+  const cd = (opp.customData ?? {}) as Record<string, unknown>
+  const oppId = (cd.id ?? opp.id ?? id) as string
+  const contactId = (opp.contact_id ?? opp.contactId) as string | undefined
+  const contactName = (opp.full_name ?? nested(opp, "contact", "name") ?? opp.contactName) as string | null ?? null
+
   await upsert("ghl_opportunities", {
-    id,
+    id: oppId,
     location_id: locationId,
-    contact_id: opp.contactId ?? null,
-    contact_name: nested(opp, "contact", "name") ?? opp.contactName ?? null,
-    contact_url: buildContactUrl(locationId, opp.contactId as string | undefined),
-    pipeline_id: opp.pipelineId ?? null,
-    pipeline_stage_id: opp.pipelineStageId ?? null,
-    stage_name: opp.stageName ?? opp.pipelineStageName ?? null,
-    assigned_to: opp.assignedTo ?? null,
-    status: opp.status ?? null,
-    monetary_value: opp.monetaryValue ?? null,
-    last_stage_change_at: opp.lastStageChangeAt ?? null,
-    updated_at: opp.updatedAt ?? null,
+    contact_id: contactId ?? null,
+    contact_name: contactName,
+    contact_url: buildContactUrl(locationId, contactId),
+    pipeline_id: opp.pipelineId as string | null ?? null,
+    pipeline_stage_id: opp.pipelineStageId as string | null ?? null,
+    stage_name: (cd.stage ?? opp.stageName ?? opp.pipelineStageName) as string | null ?? null,
+    assigned_to: (opp.assignedTo ?? (opp.user as Record<string, unknown>)?.email) as string | null ?? null,
+    status: opp.status as string | null ?? null,
+    monetary_value: opp.monetaryValue as number | null ?? null,
+    last_stage_change_at: opp.lastStageChangeAt as string | null ?? null,
+    updated_at: opp.updatedAt as string | null ?? null,
     raw: opp,
     synced_at: new Date().toISOString(),
   })
 }
 
 async function handleTask(type: string, locationId: string, id: string, task: Record<string, unknown>) {
-  if (type === "TaskDelete") {
+  const normalizedType = type.toLowerCase()
+  if (normalizedType === "taskdelete") {
     await deleteRow("ghl_tasks", id)
     return
   }
-  const isCompleted = type === "TaskComplete" ? true : (task.isCompleted ?? false)
+  const isCompleted = (normalizedType === "taskcomplete") ? true : (task.isCompleted ?? false)
+  const taskContactId = (task.contact_id ?? task.contactId ?? id) as string | undefined
+  const taskContactName = (task.full_name ?? nested(task, "contact", "name") ?? task.contactName) as string | null ?? null
+  const cd = (task.customData ?? {}) as Record<string, unknown>
+
   await upsert("ghl_tasks", {
-    id,
+    id: (task.id ?? id) as string,
     location_id: locationId,
-    contact_id: task.contactId ?? null,
-    contact_name: nested(task, "contact", "name") ?? task.contactName ?? null,
-    contact_url: buildContactUrl(locationId, task.contactId as string | undefined),
-    assigned_to: task.assignedTo ?? null,
-    title: task.title ?? null,
-    due_date: task.dueDate ?? null,
+    contact_id: taskContactId ?? null,
+    contact_name: taskContactName,
+    contact_url: buildContactUrl(locationId, taskContactId),
+    assigned_to: (task.assignedTo ?? (task.user as Record<string, unknown>)?.email) as string | null ?? null,
+    title: (cd.title ?? task.title) as string | null ?? null,
+    due_date: (cd.due_date ?? task.dueDate) as string | null ?? null,
     completed: isCompleted,
-    completed_at: isCompleted ? (task.completedAt ?? new Date().toISOString()) : null,
-    updated_at: task.updatedAt ?? null,
+    completed_at: isCompleted ? (task.completedAt as string ?? new Date().toISOString()) : null,
+    updated_at: task.updatedAt as string | null ?? null,
     raw: task,
     synced_at: new Date().toISOString(),
   })
@@ -133,61 +143,64 @@ async function handleAppointment(type: string, locationId: string, id: string, a
     await deleteRow("ghl_appointments", id)
     return
   }
+  // GHL workflow webhooks send contact data, not appointment objects.
+  // Extract what's available from the flat contact payload.
+  const contactId = (appt.contact_id ?? appt.contactId ?? id) as string | undefined
+  const contactName = (appt.full_name ?? nested(appt, "contact", "name") ?? appt.contactName) as string | null ?? null
+  const rowId = (appt.id ?? id) as string
+  // GHL custom data fields are in appt.customData
+  const cd = (appt.customData ?? {}) as Record<string, unknown>
+
   await upsert("ghl_appointments", {
-    id,
+    id: rowId,
     location_id: locationId,
-    contact_id: appt.contactId ?? null,
-    contact_name: nested(appt, "contact", "name") ?? appt.contactName ?? null,
-    contact_url: buildContactUrl(locationId, appt.contactId as string | undefined),
-    calendar_id: appt.calendarId ?? null,
-    calendar_name: appt.calendarName ?? null,
-    assigned_user_id: appt.assignedUserId ?? null,
-    start_time: appt.startTime ?? null,
-    end_time: appt.endTime ?? null,
-    status: appt.status ?? null,
-    title: appt.title ?? null,
+    contact_id: contactId ?? null,
+    contact_name: contactName,
+    contact_url: buildContactUrl(locationId, contactId),
+    calendar_id: (appt.calendarId ?? cd.calendar_id) as string | null ?? null,
+    calendar_name: (appt.calendarName ?? cd.calendar_name) as string | null ?? null,
+    assigned_user_id: ((appt.user as Record<string, unknown>)?.email ?? appt.assignedUserId) as string | null ?? null,
+    start_time: (cd["start time"] ?? cd.start_time ?? appt.startTime) as string | null ?? null,
+    end_time: (cd.end_time ?? appt.endTime) as string | null ?? null,
+    status: (cd.status ?? appt.status) as string | null ?? null,
+    title: (cd.title ?? appt.title) as string | null ?? null,
     raw: appt,
     synced_at: new Date().toISOString(),
   })
 }
 
 async function handlePcnSubmission(locationId: string, body: Record<string, unknown>) {
-  // GHL form submission payload — fields come through as custom field key/value pairs
-  // Try both the friendly label and common key formats
+  // GHL webhook payload for form submissions — PCN fields are at top level of body
+  // Field names confirmed from real GHL payload (March 10, 2026)
   const f = (key: string, ...aliases: string[]): unknown => {
     for (const k of [key, ...aliases]) {
-      if (body[k] !== undefined && body[k] !== null) return body[k]
-      // Also check nested formData/fields object
-      const fd = body.formData ?? body.fields ?? body.customFields
-      if (fd && typeof fd === "object" && (fd as Record<string, unknown>)[k] !== undefined) {
-        return (fd as Record<string, unknown>)[k]
-      }
+      if (body[k] !== undefined && body[k] !== null && body[k] !== "") return body[k]
     }
     return null
   }
 
   await upsert("ghl_pcns", {
     location_id: locationId,
-    contact_id: body.contactId ?? body.contact_id ?? null,
-    contact_email: body.email ?? body.contactEmail ?? null,
-    contact_phone: f("Client Phone (copy paste into here)", "phone", "contactPhone"),
-    appointment_id: f("PCN - Appointment ID", "appointment_id", "appointmentId"),
-    call_outcome: f("Call Outcome", "PCN - Call Outcome", "pcn_call_outcome"),
-    first_call_or_followup: f("First Call or Follow Up?", "PCN - First Call or Follow Up"),
-    cash_collected: f("Cash Collected $", "PCN - Cash Collected"),
-    signed_notes: f("Signed Notes", "PCN - Signed Notes"),
-    qualification_status: f("What is the Prospect's Qualification Status?", "PCN - Qualification Status"),
-    financial_health_quiz: f("Did they Complete the Financial Health Quiz?"),
-    offer_made: f("Did you make an offer?", "PCN - Did You Make an Offer?"),
-    why_didnt_move_forward: f("Why didn't the prospect move forward?", "PCN - Why Didn't the Prospect Move Forward Today?"),
-    call_notes: f("Call notes. Be thorough: what was there buying criteria, what was the objection, what are next steps..."),
-    followup_scheduled: f("Was a follow up scheduled?", "PCN - Was a Follow-Up Scheduled?"),
-    expected_close_date: f("When is this expected to close?"),
-    no_show_communicative: f("Was the no show communicative?", "PCN - Was the No-Show Communicative?"),
-    dq_reason: f("DQ Reason", "PCN - DQ Reason"),
-    dq_notes: f("DQ Notes", "PCN - DQ Notes"),
-    cancellation_reason: f("Cancellation Reason", "PCN - Cancellation Reason"),
-    cancellation_notes: f("Notes", "PCN - Cancellation Notes"),
+    contact_id: body.contact_id ?? body.contactId ?? null,
+    contact_email: body.email ?? null,
+    contact_phone: body.phone ?? f("Client Phone (copy paste into here)"),
+    appointment_id: f("PCN - Appointment ID", "Call Notes - Appointment ID"),
+    call_outcome: f("PCN - Call Outcome", "Call Notes - Call Outcome", "Call Outcome"),
+    first_call_or_followup: f("PCN - First Call or Follow Up", "Call Notes - First Call or Follow Up", "First Call or Follow Up?"),
+    cash_collected: f("PCN - Cash Collected"),
+    signed_notes: f("PCN - Signed Notes", "Call Notes - Signed Notes"),
+    qualification_status: f("PCN - Qualification Status", "Call Notes - Qualification Status"),
+    financial_health_quiz: f("PCN Did They Complete The Financial Health Quiz?", "PCN Did they submit the Financial Health Quiz 2"),
+    offer_made: f("PCN - Did you make an offer?", "Call Notes - Did You Make An Offer?"),
+    why_didnt_move_forward: f("PCN - Why didn't the prospect move forward", "Call Notes - Why didn't the prospect move forward? v2"),
+    call_notes: f("PCN - Not Moving Forward Notes", "Call Notes - Not Moving Forward Notes"),
+    followup_scheduled: f("PCN - Was a follow up scheduled?", "Call Notes - Was a Follow Up Scheduled?"),
+    expected_close_date: f("PCN - Nurture Type", "Call Notes - Nurture Type"),
+    no_show_communicative: f("PCN - Was the no show communicative?", "Call Notes - Was the no show communicative?"),
+    dq_reason: f("PCN - DQ Reason", "Call Notes - DQ Reason"),
+    dq_notes: f("PCN - DQ Notes", "Call Notes - DQ Notes"),
+    cancellation_reason: f("PCN - Cancellation Reason", "Call Notes - Cancellation Reason"),
+    cancellation_notes: f("PCN - Cancellation Notes", "Call Notes - Cancellation Notes"),
     submitted_at: new Date().toISOString(),
     raw: body,
     synced_at: new Date().toISOString(),
@@ -206,40 +219,45 @@ async function handleContact(type: string, locationId: string, id: string, conta
   }
 }
 
-async function processEvent(body: Record<string, unknown>) {
-  const type = body.type as string
-  const locationId = body.locationId as string
-  const id = body.id as string
+async function processEvent(body: Record<string, unknown>, type?: string, locationId?: string) {
+  const resolvedType = type ?? (body.customData as Record<string, unknown>)?.type as string ?? body.type as string ?? ""
+  const resolvedLocationId = locationId ?? body.locationId as string ?? (body.location as Record<string, unknown>)?.id as string ?? ""
+  const id = body.id as string ?? body.contact_id as string ?? ""
 
-  if (!type || !id) return
+  if (!resolvedType) return
 
-  if (type.startsWith("Opportunity")) {
+  const t = resolvedType.toLowerCase()
+  if (t.startsWith("opportunity")) {
     const opp = (body.opportunity ?? body) as Record<string, unknown>
-    await handleOpportunity(type, locationId, id, opp)
-  } else if (type.startsWith("Task")) {
+    await handleOpportunity(resolvedType, resolvedLocationId, id, opp)
+  } else if (t.startsWith("task")) {
     const task = (body.task ?? body) as Record<string, unknown>
-    await handleTask(type, locationId, id, task)
-  } else if (type.startsWith("Appointment")) {
+    await handleTask(resolvedType, resolvedLocationId, id, task)
+  } else if (t.startsWith("appointment")) {
     const appt = (body.appointment ?? body) as Record<string, unknown>
-    await handleAppointment(type, locationId, id, appt)
-  } else if (type.startsWith("Contact")) {
+    await handleAppointment(resolvedType, resolvedLocationId, id, appt)
+  } else if (t.startsWith("contact")) {
     const contact = (body.contact ?? body) as Record<string, unknown>
-    await handleContact(type, locationId, id, contact)
-  } else if (type === "FormSubmitted" || type === "SurveySubmitted") {
-    // PCN form submission
-    await handlePcnSubmission(locationId, body)
+    await handleContact(resolvedType, resolvedLocationId, id, contact)
+  } else if (t === "formsubmitted" || t === "surveysubmitted") {
+    // PCN form submission — fields are at top level of body
+    await handlePcnSubmission(resolvedLocationId, body)
   }
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const type = body.type as string ?? "unknown"
-  const locationId = body.locationId as string ?? ""
-  const id = body.id as string ?? ""
+  // GHL sends type in customData.type (workflow custom data) or body.type
+  const type = (body.customData?.type as string) ?? (body.type as string) ?? "unknown"
+  // GHL sends locationId as body.locationId or nested body.location.id
+  const locationId = (body.locationId as string) ?? (body.location?.id as string) ?? ""
+  const id = (body.id as string) ?? (body.contact_id as string) ?? ""
 
-  // Log event and process async — respond immediately
-  logEvent(locationId, type, id, body).catch(() => {})
-  processEvent(body).catch((err) => console.error("[ghl-webhook] process error:", err))
+  // Await both — Vercel kills fire-and-forget before writes complete
+  await Promise.allSettled([
+    logEvent(locationId, type, id, body),
+    processEvent(body, type, locationId),
+  ])
 
   return NextResponse.json({ ok: true })
 }

@@ -24,12 +24,13 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Public API routes (webhooks) — skip auth
-  if (pathname.startsWith('/api/ghl-webhook')) {
+  // Public API routes (webhooks, migrations) — skip auth
+  if (pathname.startsWith('/api/ghl-webhook') || pathname.startsWith('/api/run-migration')) {
     return supabaseResponse
   }
 
-  if (!user && pathname !== '/login' && !pathname.startsWith('/auth/')) {
+  const publicPaths = ['/', '/login', '/privacy', '/terms'];
+  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     if (pathname !== '/') url.searchParams.set('redirect', pathname)

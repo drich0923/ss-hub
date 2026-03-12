@@ -398,14 +398,19 @@ export default function QCDashboardClient({ reports }: { reports: QCReport[] }) 
   const withProd = filtered.filter(r => r.productivity_rate != null)
   const avgProductivity = withProd.length ? Math.round(withProd.reduce((s, r) => s + (r.productivity_rate ?? 0), 0) / withProd.length) : null
 
-  // Current metrics — use most recent report per rep, not a running sum
-  const latestByRep = Object.values(
-    filtered.reduce((acc, r) => {
-      const key = r.client + '__' + r.rep_name
-      if (!acc[key] || r.report_date > acc[key].report_date) acc[key] = r
-      return acc
-    }, {} as Record<string, QCReport>)
-  )
+  // Current metrics — only the most recent audit date in the dataset (today's run)
+  const mostRecentDate = filtered.length ? filtered.reduce((max, r) => r.report_date > max ? r.report_date : max, filtered[0].report_date) : null
+  const latestByRep = mostRecentDate
+    ? Object.values(
+        filtered
+          .filter(r => r.report_date === mostRecentDate)
+          .reduce((acc, r) => {
+            const key = r.client + '__' + r.rep_name
+            if (!acc[key] || r.report_date > acc[key].report_date) acc[key] = r
+            return acc
+          }, {} as Record<string, QCReport>)
+      )
+    : []
   const totalOverdue = latestByRep.reduce((s, r) => s + r.overdue_tasks_count, 0)
   const totalPipeline = latestByRep.reduce((s, r) => s + r.pipeline_hygiene_issues, 0)
   const totalUnread = latestByRep.reduce((s, r) => s + r.unread_convos, 0)
