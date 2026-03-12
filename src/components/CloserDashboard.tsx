@@ -202,6 +202,8 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
       .catch(() => { setCalendarError("Failed to load calendar"); setCalendarLoading(false); });
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
+  const [homeAlerts, setHomeAlerts] = useState<any[]>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
     const expanded: Record<string, boolean> = {};
     if (activeSlug) {
@@ -224,6 +226,13 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
   }, [pages]);
 
   const flatItems = useMemo(() => flattenNav(CLOSER_NAV), []);
+  useEffect(() => {
+    fetch("/api/closer/alerts")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setHomeAlerts(data.filter((a: any) => !a.is_read)); })
+      .catch(() => {});
+  }, []);
+
   const activeNav = activeSlug ? findNavItem(CLOSER_NAV, activeSlug) : null;
   const activePage = activeSlug ? pageMap[activeSlug] : null;
 
@@ -427,6 +436,51 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
           </div>
 
           <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "48px 32px" }}>
+            {/* Alert Banners */}
+            {homeAlerts.filter(a => !dismissedAlerts.has(a.id)).length > 0 && (
+              <div style={{ marginBottom: "32px" }}>
+                {homeAlerts.filter(a => !dismissedAlerts.has(a.id)).map(alert => (
+                  <div key={alert.id} style={{
+                    background: "linear-gradient(135deg, rgba(255,93,0,0.08), rgba(255,93,0,0.03))",
+                    border: "1px solid rgba(255,93,0,0.25)",
+                    borderRadius: "14px",
+                    padding: "16px 20px",
+                    marginBottom: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
+                  }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(255,93,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "18px" }}>🔔</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff", marginBottom: "2px" }}>{alert.title}</div>
+                      <div style={{ fontSize: "13px", color: "#999" }}>{alert.message.length > 100 ? alert.message.slice(0, 100) + "..." : alert.message}</div>
+                    </div>
+                    {alert.link_url && (
+                      <a href={alert.link_url} target="_blank" rel="noopener" style={{
+                        background: "rgba(255,93,0,0.15)",
+                        border: "1px solid rgba(255,93,0,0.3)",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        color: "#ff5d00",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
+                      }}>{alert.link_label || "Take Action"}</a>
+                    )}
+                    <button onClick={() => {
+                      setDismissedAlerts(prev => new Set([...prev, alert.id]));
+                      fetch("/api/closer/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alert_id: alert.id }) });
+                    }} style={{
+                      background: "none", border: "none", color: "#555", cursor: "pointer", padding: "4px", flexShrink: 0, fontSize: "18px",
+                    }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Starred */}
             {bookmarkedItems.length > 0 && (
               <div style={{ marginBottom: "52px" }}>

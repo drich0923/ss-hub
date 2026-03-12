@@ -62,6 +62,8 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
     send_day: "monday",
     send_time: "09:00",
     send_month_day: "1",
+    link_url: "",
+    link_label: "",
   })
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
     if (res.ok) {
       setAlerts(prev => [data, ...prev])
       setShowCreate(false)
-      setForm({ client: "", title: "", message: "", target_role: "closer", frequency: "weekly", send_day: "monday", send_time: "09:00", send_month_day: "1" })
+      setForm({ client: "", title: "", message: "", target_role: "closer", frequency: "weekly", send_day: "monday", send_time: "09:00", send_month_day: "1", link_url: "", link_label: "" })
     }
   }
 
@@ -208,6 +210,16 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
             <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Message</label>
             <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required placeholder="Reminder to submit your commission tracker by EOD Friday..." rows={3} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Link URL (optional)</label>
+              <input value={form.link_url} onChange={e => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Link Label</label>
+              <input value={form.link_label} onChange={e => setForm({ ...form, link_label: e.target.value })} placeholder="e.g. Submit Now →" style={inputStyle} />
+            </div>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div>
               <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Frequency</label>
@@ -298,6 +310,11 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
                       />
                     ) : (
                       <p style={{ margin: 0, fontSize: 13, color: "#999", lineHeight: 1.5 }}>{alert.message}</p>
+                    {(alert as any).link_url && (
+                      <a href={(alert as any).link_url} target="_blank" rel="noopener" style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#8ceb4c", textDecoration: "none" }}>
+                        {(alert as any).link_label || "Open Link"} →
+                      </a>
+                    )}
                     )}
                     {alert.last_sent_at && (
                       <p style={{ margin: "6px 0 0", fontSize: 11, color: "#555" }}>
