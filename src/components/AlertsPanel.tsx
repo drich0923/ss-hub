@@ -309,12 +309,14 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
                         style={{ ...inputStyle, resize: "vertical" }}
                       />
                     ) : (
-                      <p style={{ margin: 0, fontSize: 13, color: "#999", lineHeight: 1.5 }}>{alert.message}</p>
-                    {(alert as any).link_url && (
-                      <a href={(alert as any).link_url} target="_blank" rel="noopener" style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#8ceb4c", textDecoration: "none" }}>
-                        {(alert as any).link_label || "Open Link"} →
-                      </a>
-                    )}
+                      <>
+                        <p style={{ margin: 0, fontSize: 13, color: "#999", lineHeight: 1.5 }}>{alert.message}</p>
+                        {(alert as any).link_url && (
+                          <a href={(alert as any).link_url} target="_blank" rel="noopener" style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#8ceb4c", textDecoration: "none" }}>
+                            {(alert as any).link_label || "Open Link"} →
+                          </a>
+                        )}
+                      </>
                     )}
                     {alert.last_sent_at && (
                       <p style={{ margin: "6px 0 0", fontSize: 11, color: "#555" }}>
