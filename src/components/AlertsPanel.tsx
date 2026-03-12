@@ -61,6 +61,7 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
     frequency: "weekly",
     send_day: "monday",
     send_time: "09:00",
+    send_month_day: "1",
   })
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
     const payload = {
       ...form,
       send_day: form.frequency === "weekly" ? form.send_day : null,
+      send_month_day: form.frequency === "monthly" ? form.send_month_day : null,
     }
     const res = await fetch("/api/alerts", {
       method: "POST",
@@ -221,6 +223,17 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
                 </select>
               </div>
             )}
+            {form.frequency === "monthly" && (
+              <div>
+                <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Day of Month</label>
+                <select value={form.send_month_day} onChange={e => setForm({ ...form, send_month_day: e.target.value })} style={selectStyle}>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={String(d)} style={{ background: "#111" }}>{d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"}</option>
+                  ))}
+                  <option value="last" style={{ background: "#111" }}>Last day</option>
+                </select>
+              </div>
+            )}
             <div>
               <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Time (ET)</label>
               <input type="time" value={form.send_time} onChange={e => setForm({ ...form, send_time: e.target.value })} style={inputStyle} />
@@ -273,7 +286,7 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
                       <span style={{ fontSize: 11, color: "#888" }}>{alert.client}</span>
                       <span style={{ fontSize: 11, color: "#666" }}>·</span>
                       <span style={{ fontSize: 11, color: "#888", textTransform: "capitalize" }}>
-                        {alert.frequency}{alert.send_day ? ` · ${alert.send_day}` : ""} @ {alert.send_time} ET
+                        {alert.frequency}{alert.send_day ? ` · ${alert.send_day}` : ""}{(alert as any).send_month_day ? ` · day ${(alert as any).send_month_day}` : ""} @ {alert.send_time} ET
                       </span>
                     </div>
                     {isEditing ? (
