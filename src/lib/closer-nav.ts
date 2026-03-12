@@ -68,12 +68,6 @@ export const CLOSER_NAV: NavItem[] = [
 
     { key: "playbook/tech", label: "Tech", type: "section", children: [
       { key: "playbook/tech/tech-stack", label: "Tech Stack Overview", type: "coming_soon" },
-      { key: "playbook/tech/slack-comms", label: "Slack Internal Communication", type: "coming_soon" },
-      { key: "playbook/tech/internal-comms", label: "Internal Communication", type: "coming_soon" },
-      { key: "playbook/tech/questions", label: "Questions", type: "coming_soon" },
-      { key: "playbook/tech/updates", label: "Updates", type: "coming_soon" },
-      { key: "playbook/tech/call-recordings", label: "Call Recordings", type: "coming_soon" },
-      { key: "playbook/tech/task-management", label: "Task Management (Asana/ClickUp)", type: "coming_soon" },
       { key: "playbook/tech/calendars", label: "Calendars", type: "section", children: [
         { key: "playbook/tech/calendars/calendars-link", label: "Calendars", type: "link" },
       ]},
@@ -81,10 +75,10 @@ export const CLOSER_NAV: NavItem[] = [
         { key: "playbook/tech/crm/ghl-overview", label: "Overview of GHL Sales Meeting", type: "link" },
         { key: "playbook/tech/crm/ghl-training", label: "GHL Sales Rep Training", type: "link" },
         { key: "playbook/tech/crm/calendars", label: "Calendars", type: "link" },
-        { key: "playbook/tech/crm/pcn", label: "PCN", type: "section", children: [
-          { key: "playbook/tech/crm/pcn/how-to-create", label: "How To Create a PCN Link", type: "embed" },
-          { key: "playbook/tech/crm/pcn/meeting-transfers", label: "SOP: Meeting Transfers", type: "page" },
-        ]},
+      ]},
+      { key: "playbook/tech/pcn", label: "PCN", type: "section", children: [
+        { key: "playbook/tech/pcn/how-to-create", label: "How To Create a PCN Link", type: "embed" },
+        { key: "playbook/tech/pcn/meeting-transfers", label: "SOP: Meeting Transfers", type: "page" },
       ]},
     ]},
 
