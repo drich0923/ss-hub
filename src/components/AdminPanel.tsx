@@ -57,6 +57,7 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<string>("manager")
   const [inviteClient, setInviteClient] = useState("")
+  const [inviteRepType, setInviteRepType] = useState("")
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
@@ -156,6 +157,7 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
         email: inviteEmail.trim(),
         role: inviteRole,
         client: inviteRole === 'sales_rep' ? inviteClient : null,
+        rep_type: inviteRole === 'sales_rep' ? inviteRepType : null,
       }),
     })
     const data = await res.json()
@@ -169,6 +171,7 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
         email: inviteEmail.trim(),
         role: inviteRole,
         client: inviteRole === 'sales_rep' ? inviteClient : undefined,
+        rep_type: inviteRole === 'sales_rep' ? inviteRepType : undefined,
         created_at: new Date().toISOString()
       }])
       setPermState(prev => ({ ...prev, [data.userId]: new Set() }))
@@ -236,6 +239,19 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
                 {clientList.map(c => (
                   <option key={c.name} value={c.name} style={{ background: "#111" }}>{c.name}</option>
                 ))}
+              </select>
+            )}
+
+            {inviteRole === 'sales_rep' && (
+              <select
+                value={inviteRepType}
+                onChange={e => setInviteRepType(e.target.value)}
+                required={inviteRole === 'sales_rep'}
+                style={{ ...inputStyle, minWidth: "130px" }}
+              >
+                <option value="" style={{ background: "#111" }}>Rep type...</option>
+                <option value="closer" style={{ background: "#111" }}>Closer</option>
+                <option value="setter" style={{ background: "#111" }}>Setter</option>
               </select>
             )}
 
