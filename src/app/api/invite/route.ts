@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from("manager_profiles").select("role").eq("user_id", user.id).single()
   if (profile?.role !== "admin") return NextResponse.json({ error: "Admin only" }, { status: 403 })
 
-  const { email, role, client } = await req.json()
+  const { email, role, client, rep_type } = await req.json()
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 })
 
   // Use Supabase invite endpoint — sends email with magic link to set password
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       const usersData = await usersRes.json()
       const existingUser = usersData.users?.[0]
       if (existingUser) {
-        await createProfile(existingUser.id, email, role, client)
+        await createProfile(existingUser.id, email, role, client, rep_type)
         return NextResponse.json({ success: true, userId: existingUser.id, alreadyExisted: true })
       }
     }
@@ -48,13 +48,14 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = data.id
-  await createProfile(userId, email, role, client)
+  await createProfile(userId, email, role, client, rep_type)
   return NextResponse.json({ success: true, userId })
 }
 
-async function createProfile(userId: string, email: string, role: string, client?: string) {
+async function createProfile(userId: string, email: string, role: string, client?: string, rep_type?: string) {
   const payload: Record<string, string> = { user_id: userId, email, role: role || "manager" }
   if (client) payload.client = client
+  if (rep_type) payload.rep_type = rep_type
 
   await fetch(`${SUPABASE_URL}/rest/v1/manager_profiles`, {
     method: "POST",
