@@ -212,8 +212,8 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Link URL (optional)</label>
-              <input value={form.link_url} onChange={e => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." style={inputStyle} />
+              <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Link URL (optional — external URL or /closer-dashboard path)</label>
+              <input value={form.link_url} onChange={e => setForm({ ...form, link_url: e.target.value })} placeholder="https://... or /closer-dashboard/budgetdog/playbook/..." style={inputStyle} />
             </div>
             <div>
               <label style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, display: "block" }}>Link Label</label>

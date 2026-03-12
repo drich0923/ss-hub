@@ -86,10 +86,10 @@ export default function CloserAlerts() {
       {/* Dropdown panel */}
       {open && (
         <div style={{
-          position: "absolute",
-          top: "calc(100% + 8px)",
-          right: 0,
-          width: 360,
+          position: "fixed",
+          top: 60,
+          left: 290,
+          width: 380,
           maxHeight: 480,
           overflowY: "auto",
           background: "#111",
