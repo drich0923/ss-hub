@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { APPS } from "@/lib/apps"
 import AdminPanel from "@/components/AdminPanel"
+import AlertsPanel from "@/components/AlertsPanel"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -32,5 +33,17 @@ export default async function AdminPage() {
   const permissions = await permsRes.json()
   const clients = await clientsRes.json()
 
-  return <AdminPanel users={users} permissions={permissions} apps={APPS} clients={clients} currentUserId={user.id} />
+  return (
+    <div>
+      <AdminPanel users={users} permissions={permissions} apps={APPS} clients={clients} currentUserId={user.id} />
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 48px" }}>
+        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: 24 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+            🔔 Recurring Alerts
+          </h2>
+          <AlertsPanel clients={clients} />
+        </div>
+      </div>
+    </div>
+  )
 }
