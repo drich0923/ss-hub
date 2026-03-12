@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CLOSER_NAV, flattenNav, findNavItem, type NavItem } from "@/lib/closer-nav";
 import CloserEditor from "@/components/CloserEditor";
+import CloserAlerts from "@/components/CloserAlerts";
 import { Star, ChevronRight, ChevronDown, Search, ExternalLink, Clock, ArrowLeft, Menu, X, BookOpen, DollarSign, FileText, CheckSquare, Briefcase, GraduationCap, FolderOpen, Calendar, Phone, ClipboardList, CreditCard, UserCheck, Settings, MessageSquare, Users, Monitor, Dumbbell, BarChart2, Gift, Link as LinkIcon, LucideIcon } from "lucide-react";
 
 // Nav item icons
@@ -653,7 +654,10 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
           <a href="/" style={{ textDecoration: "none", color: "#666", fontSize: 12, display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
             <ArrowLeft size={12} /> Back to Hub
           </a>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>Closer Dashboard</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>Closer Dashboard</h2>
+            <CloserAlerts />
+          </div>
           <p style={{ fontSize: 12, color: "#555", margin: "4px 0 0" }}>{clientSlug}</p>
         </div>
 
