@@ -91,7 +91,7 @@ export default function AlertsPanel({ clients }: { clients: Client[] }) {
     if (res.ok) {
       setAlerts(prev => [data, ...prev])
       setShowCreate(false)
-      setForm({ client: "", title: "", message: "", target_role: "closer", frequency: "weekly", send_day: "monday", send_time: "09:00" })
+      setForm({ client: "", title: "", message: "", target_role: "closer", frequency: "weekly", send_day: "monday", send_time: "09:00", send_month_day: "1" })
     }
   }
 
