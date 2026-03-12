@@ -334,7 +334,7 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
           {isSection && (
             isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
           )}
-          {depth === 0 && NAV_ICONS[item.key] && (() => { const Icon = NAV_ICONS[item.key]; return <Icon size={14} style={{ flexShrink: 0, opacity: 0.8 }} />; })()}
+          {NAV_ICONS[item.key] && (() => { const Icon = NAV_ICONS[item.key]; return <Icon size={14} style={{ flexShrink: 0, opacity: 0.8 }} />; })()}
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.label}
           </span>
