@@ -67,7 +67,10 @@ export const CLOSER_NAV: NavItem[] = [
     ]},
 
     { key: "playbook/tech", label: "Tech", type: "section", children: [
-      { key: "playbook/tech/tech-stack", label: "Tech Stack Overview", type: "coming_soon" },
+      { key: "playbook/tech/tech-stack", label: "Tech Stack Overview", type: "section", children: [
+        { key: "playbook/tech/tech-stack/slack", label: "Slack (Internal Communication)", type: "coming_soon" },
+        { key: "playbook/tech/tech-stack/task-management", label: "Task Management (Asana/ClickUp)", type: "coming_soon" },
+      ]},
       { key: "playbook/tech/calendars", label: "Calendars", type: "section", children: [
         { key: "playbook/tech/calendars/calendars-link", label: "Calendars", type: "link" },
       ]},
