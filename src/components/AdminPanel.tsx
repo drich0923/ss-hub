@@ -9,6 +9,7 @@ interface ManagerProfile {
   email: string
   role: string
   client?: string
+  rep_type?: string
   created_at: string
 }
 
@@ -82,6 +83,15 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
       })
     }
     setSaving(null)
+  }
+
+  async function handleUpdateRepType(userId: string, rep_type: string) {
+    setLocalUsers(prev => prev.map(u => u.user_id === userId ? { ...u, rep_type: rep_type || undefined } : u))
+    await fetch("/api/admin/update-profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, rep_type: rep_type || null }),
+    })
   }
 
   async function handleUpdateClient(userId: string, client: string) {
@@ -316,6 +326,7 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
                   <th style={{ textAlign: "left", padding: "10px 16px", color: "#555", fontSize: "11px", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>User</th>
 
                   <th style={{ textAlign: "left", padding: "10px 8px", color: "#555", fontSize: "11px", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Account</th>
+                  <th style={{ textAlign: "left", padding: "10px 8px", color: "#555", fontSize: "11px", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)", minWidth: "110px" }}>Role</th>
                   {apps.map(app => (
                     <th key={app.slug} style={{ textAlign: "center", padding: "10px 8px", color: "#555", fontSize: "11px", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)", minWidth: "80px" }}>
                       {app.name.split(" ")[0]}
@@ -349,6 +360,21 @@ export default function AdminPanel({ users, permissions, apps, clients: initialC
                         </select>
                       ) : (
                         <span style={{ color: "#444", fontSize: "12px" }}>Internal</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "14px 8px", verticalAlign: "middle" }}>
+                      {u.role === "sales_rep" ? (
+                        <select
+                          value={u.rep_type || ""}
+                          onChange={e => handleUpdateRepType(u.user_id, e.target.value)}
+                          style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: u.rep_type ? "#fff" : "#555", fontSize: "12px", padding: "4px 8px", cursor: "pointer", outline: "none", minWidth: "100px" }}
+                        >
+                          <option value="" style={{ background: "#111" }}>— none —</option>
+                          <option value="closer" style={{ background: "#111" }}>Closer</option>
+                          <option value="setter" style={{ background: "#111" }}>Setter</option>
+                        </select>
+                      ) : (
+                        <span style={{ color: "#444", fontSize: "12px" }}>—</span>
                       )}
                     </td>
                     {apps.map(app => {
