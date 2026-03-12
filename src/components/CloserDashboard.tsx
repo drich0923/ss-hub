@@ -303,66 +303,196 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
     router.refresh();
   };
 
-  const renderNavItem = (item: NavItem, depth: number = 0) => {
-    const isSection = item.type === "section";
-    const isSpecial = item.type === "special";
-    const isExpanded = expandedSections[item.key];
+  // Section header colors for playbook groups
+  const SECTION_HEADER_COLORS: Record<string, string> = {
+    "playbook/sales-calls": "#5b8aff",
+    "playbook/admin": "#ff5d00",
+    "playbook/tech": "#a78bfa",
+    "playbook/training": "#f59e0b",
+    "playbook/resources": "#8ceb4c",
+  };
+
+  // Build sidebar structure: top-level items + playbook sections
+  const sidebarGroups = useMemo(() => {
+    const topItems: NavItem[] = [];
+    const sections: NavItem[] = [];
+    for (const item of CLOSER_NAV) {
+      if (item.type === "special") continue;
+      if (item.type === "section" && item.children) {
+        sections.push(...item.children);
+      } else {
+        topItems.push(item);
+      }
+    }
+    return { topItems, sections };
+  }, []);
+
+  const renderNavLeaf = (item: NavItem, indent: number = 0) => {
     const isActive = activeSlug === item.key;
     const isBookmarked = bookmarks.includes(item.key);
     const isComingSoon = item.type === "coming_soon";
-
-    if (isSpecial) return null;
+    const Icon = NAV_ICONS[item.key];
 
     return (
-      <div key={item.key}>
+      <div key={item.key} style={{ position: "relative" }}>
+        {isActive && (
+          <div style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 3, borderRadius: 2, background: "#8ceb4c" }} />
+        )}
         <div
-          onClick={() => {
-            if (isSection) {
-              toggleSection(item.key);
-            } else if (!isComingSoon) {
-              navigateTo(item.key);
-            }
-          }}
+          onClick={() => !isComingSoon && navigateTo(item.key)}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 8px",
-            paddingLeft: 8 + depth * 16,
-            borderRadius: 6,
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "11px 14px",
+            paddingLeft: 18 + indent * 18,
+            borderRadius: 8,
             cursor: isComingSoon ? "default" : "pointer",
-            background: isActive ? "rgba(140,235,76,0.12)" : "transparent",
-            color: isComingSoon ? "#555" : isActive ? "#8ceb4c" : "#ccc",
-            fontSize: 13,
-            fontWeight: isSection ? 600 : 400,
+            background: isActive ? "rgba(140,235,76,0.08)" : "transparent",
+            color: isComingSoon ? "#555" : isActive ? "#fff" : "#b0b0b8",
+            fontSize: 15,
+            fontWeight: isActive ? 500 : 400,
             transition: "background 0.15s",
             opacity: isComingSoon ? 0.5 : 1,
           }}
-          onMouseEnter={(e) => { if (!isActive && !isComingSoon) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
-          onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = isActive ? "rgba(140,235,76,0.12)" : "transparent"; }}
+          onMouseEnter={(e) => { if (!isActive && !isComingSoon) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? "rgba(140,235,76,0.08)" : "transparent"; }}
         >
-          {isSection && (
-            isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-          )}
-          {NAV_ICONS[item.key] && (() => { const Icon = NAV_ICONS[item.key]; return <Icon size={14} style={{ flexShrink: 0, opacity: 0.8 }} />; })()}
+          {Icon && <Icon size={18} style={{ flexShrink: 0, opacity: 0.7 }} />}
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.label}
           </span>
           {isComingSoon && (
-            <span style={{ fontSize: 10, background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: 4, color: "#666" }}>Soon</span>
+            <span style={{ fontSize: 10, background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: 4, color: "#666" }}>Soon</span>
           )}
-          {!isSection && !isComingSoon && (
+          {!isComingSoon && (
             <Star
-              size={13}
+              size={14}
               fill={isBookmarked ? "#8ceb4c" : "none"}
-              color={isBookmarked ? "#8ceb4c" : "#444"}
+              color={isBookmarked ? "#8ceb4c" : "transparent"}
               onClick={(e) => { e.stopPropagation(); toggleBookmark(item.key); }}
               style={{ cursor: "pointer", flexShrink: 0 }}
+              onMouseEnter={(e) => { if (!isBookmarked) (e.currentTarget as unknown as HTMLElement).style.color = "#555"; }}
+              onMouseLeave={(e) => { if (!isBookmarked) (e.currentTarget as unknown as HTMLElement).style.color = "transparent"; }}
             />
           )}
         </div>
-        {isSection && isExpanded && item.children && (
-          <div>{item.children.map(child => renderNavItem(child, depth + 1))}</div>
+      </div>
+    );
+  };
+
+  // Render a subsection (expandable item within a section group, max 1 indent level for children)
+  const renderSubsection = (item: NavItem, indent: number = 0) => {
+    if (item.type !== "section") return renderNavLeaf(item, indent);
+
+    const isExpanded = expandedSections[item.key];
+    const Icon = NAV_ICONS[item.key];
+    const hasChildren = item.children && item.children.length > 0;
+    const isActive = activeSlug === item.key;
+
+    return (
+      <div key={item.key}>
+        <div
+          onClick={() => toggleSection(item.key)}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "11px 14px",
+            paddingLeft: 18 + indent * 18,
+            borderRadius: 8,
+            cursor: "pointer",
+            background: isActive ? "rgba(140,235,76,0.08)" : "transparent",
+            color: "#d0d0d8",
+            fontSize: indent === 0 ? 15 : 14,
+            fontWeight: 500,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? "rgba(140,235,76,0.08)" : "transparent"; }}
+        >
+          {Icon && <Icon size={18} style={{ flexShrink: 0, opacity: 0.7 }} />}
+          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {item.label}
+          </span>
+          {hasChildren && (
+            isExpanded ? <ChevronDown size={16} color="#666" /> : <ChevronRight size={16} color="#666" />
+          )}
+        </div>
+        {isExpanded && item.children && (
+          <div>
+            {item.children.map(child => {
+              // Cap visual indent at 1 level deep within a section group
+              if (child.type === "section" && indent < 1) {
+                return renderSubsection(child, indent + 1);
+              }
+              // For deeper sections, just show their children flat
+              if (child.type === "section" && child.children) {
+                const childExpanded = expandedSections[child.key];
+                const ChildIcon = NAV_ICONS[child.key];
+                return (
+                  <div key={child.key}>
+                    <div
+                      onClick={() => toggleSection(child.key)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 14px",
+                        paddingLeft: 18 + (indent + 1) * 18,
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        color: "#999",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    >
+                      {ChildIcon && <ChildIcon size={16} style={{ flexShrink: 0, opacity: 0.6 }} />}
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{child.label}</span>
+                      {child.children && child.children.length > 0 && (
+                        childExpanded ? <ChevronDown size={14} color="#555" /> : <ChevronRight size={14} color="#555" />
+                      )}
+                    </div>
+                    {childExpanded && child.children && child.children.map(gc => renderNavLeaf(gc, indent + 2 > 2 ? 2 : indent + 2))}
+                  </div>
+                );
+              }
+              return renderNavLeaf(child, indent + 1);
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render a section group with uppercase header
+  const renderSectionGroup = (section: NavItem) => {
+    const color = SECTION_HEADER_COLORS[section.key] || "#666";
+    const isExpanded = expandedSections[section.key];
+
+    return (
+      <div key={section.key} style={{ marginTop: 24 }}>
+        <div
+          onClick={() => toggleSection(section.key)}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "6px 18px",
+            cursor: "pointer",
+            marginBottom: 4,
+          }}
+        >
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "1.5px",
+            textTransform: "uppercase" as const,
+            color,
+          }}>
+            {section.label}
+          </span>
+          {isExpanded ? <ChevronDown size={14} color="#555" /> : <ChevronRight size={14} color="#555" />}
+        </div>
+        {isExpanded && section.children && (
+          <div>
+            {section.children.map(child => renderSubsection(child, 0))}
+          </div>
         )}
       </div>
     );
@@ -691,10 +821,10 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
       {/* Sidebar */}
       <aside
         style={{
-          width: 280,
-          minWidth: 280,
+          width: 300,
+          minWidth: 300,
           borderRight: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.015)",
+          background: "#0a0d1a",
           display: sidebarOpen ? "flex" : "none",
           flexDirection: "column",
           height: "100vh",
@@ -704,21 +834,21 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
         }}
       >
         {/* Logo / Header */}
-        <div style={{ padding: "20px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <a href="/" style={{ textDecoration: "none", color: "#666", fontSize: 12, display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
+        <div style={{ padding: "24px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <a href="/" style={{ textDecoration: "none", color: "#666", fontSize: 12, display: "flex", alignItems: "center", gap: 4, marginBottom: 12 }}>
             <ArrowLeft size={12} /> Back to Hub
           </a>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>Closer Dashboard</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Closer Dashboard</h2>
             <CloserAlerts />
           </div>
-          <p style={{ fontSize: 12, color: "#555", margin: "4px 0 0" }}>{clientSlug}</p>
+          <p style={{ fontSize: 12, color: "#555", margin: "6px 0 0" }}>{clientSlug}</p>
         </div>
 
         {/* Search */}
-        <div style={{ padding: "12px 12px 8px" }}>
+        <div style={{ padding: "16px 16px 8px" }}>
           <div style={{ position: "relative" }}>
-            <Search size={14} color="#555" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+            <Search size={15} color="#555" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
             <input
               type="text"
               placeholder="Search pages..."
@@ -726,12 +856,12 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: "100%",
-                padding: "8px 10px 8px 32px",
-                borderRadius: 6,
+                padding: "10px 12px 10px 36px",
+                borderRadius: 8,
                 border: "1px solid rgba(255,255,255,0.08)",
                 background: "rgba(255,255,255,0.04)",
                 color: "#fff",
-                fontSize: 13,
+                fontSize: 14,
                 outline: "none",
                 boxSizing: "border-box",
               }}
@@ -739,9 +869,14 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
           </div>
         </div>
 
-        {/* Nav tree */}
-        <nav style={{ flex: 1, padding: "4px 8px 20px", overflowY: "auto" }}>
-          {CLOSER_NAV.map(item => renderNavItem(item, 0))}
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: "8px 8px 24px", overflowY: "auto" }}>
+          {/* Top-level items */}
+          <div style={{ marginBottom: 4 }}>
+            {sidebarGroups.topItems.map(item => renderNavLeaf(item))}
+          </div>
+          {/* Section groups */}
+          {sidebarGroups.sections.map(section => renderSectionGroup(section))}
         </nav>
       </aside>
 
