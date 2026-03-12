@@ -1,10 +1,10 @@
 "use client";
 
 import { APPS, type App } from "@/lib/apps";
-import { Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2, Lock, ExternalLink } from "lucide-react";
+import { Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2, Monitor, Lock, ExternalLink } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{size?: number; color?: string}>> = {
-  Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2,
+  Users, ClipboardCheck, UserPlus, BookOpen, TrendingUp, BarChart2, Monitor,
 };
 
 const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; btn: string }> = {
