@@ -10,11 +10,10 @@ export interface NavItem {
 export const CLOSER_NAV: NavItem[] = [
   { key: "starred", label: "Starred", type: "special" },
   { key: "how-to-use", label: "How To Use This Dashboard", type: "page" },
-  { key: "payment-links", label: "Payment Links", type: "page" },
   { key: "student-success-stories", label: "Student Success Stories", type: "link" },
   { key: "playbook", label: "Playbooks", type: "section", children: [
 
-    { key: "playbook/sales-calls", label: "Sales Calls", type: "section", children: [
+    { key: "playbook/sales-calls", label: "Sales Calls (Pre Call → Onboarding)", type: "section", children: [
       { key: "playbook/sales-calls/pre-call", label: "Pre Call", type: "section", children: [] },
       { key: "playbook/sales-calls/during-call", label: "During Call", type: "section", children: [
         { key: "playbook/sales-calls/during-call/master-script", label: "Master Script", type: "page" },
@@ -99,7 +98,7 @@ export const CLOSER_NAV: NavItem[] = [
           { key: "playbook/training/understanding-leads/company-info/services", label: "Services", type: "link" },
           { key: "playbook/training/understanding-leads/company-info/founder-journey", label: "Founder Hero Journey", type: "coming_soon" },
         ]},
-        { key: "playbook/training/understanding-leads/offer", label: "Offer/Marketing/Application", type: "section", children: [
+        { key: "playbook/training/understanding-leads/offer", label: "Marketing/Application", type: "section", children: [
           { key: "playbook/training/understanding-leads/offer/other-offers", label: "Understanding Other Offers", type: "link" },
           { key: "playbook/training/understanding-leads/offer/funnel", label: "Funnel", type: "link" },
         ]},

@@ -821,8 +821,8 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
       {/* Sidebar */}
       <aside
         style={{
-          width: 300,
-          minWidth: 300,
+          width: 320,
+          minWidth: 320,
           borderRight: "1px solid rgba(255,255,255,0.08)",
           background: "#0a0d1a",
           display: sidebarOpen ? "flex" : "none",
@@ -871,11 +871,23 @@ export default function CloserDashboard({ clientSlug, pages, bookmarks: initialB
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "8px 8px 24px", overflowY: "auto" }}>
-          {/* Top-level items */}
-          <div style={{ marginBottom: 4 }}>
-            {sidebarGroups.topItems.map(item => renderNavLeaf(item))}
-          </div>
-          {/* Section groups */}
+          {/* Hot Links */}
+          {sidebarGroups.topItems.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "#444", padding: "12px 8px 6px" }}>
+                Hot Links
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                {sidebarGroups.topItems.map(item => renderNavLeaf(item))}
+              </div>
+            </>
+          )}
+          {/* Playbooks */}
+          {sidebarGroups.sections.length > 0 && (
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "#444", padding: "16px 8px 0px" }}>
+              Playbooks
+            </div>
+          )}
           {sidebarGroups.sections.map(section => renderSectionGroup(section))}
         </nav>
       </aside>
